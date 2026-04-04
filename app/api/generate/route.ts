@@ -51,8 +51,14 @@ async function runPhase1(
   videoFile: File,
   request: GenerateRequest,
 ): Promise<void> {
-  const tmpDir       = os.tmpdir();
-  const ext          = videoFile.name.split('.').pop() ?? 'mp4';
+  const tmpDir = os.tmpdir();
+  const ext = (videoFile.name.split('.').pop() ?? 'mp4').toLowerCase();
+  const allowedExtensions = ['mp4', 'mov', 'webm'];
+
+  if (!allowedExtensions.includes(ext)) {
+    throw new Error(`Unsupported video format: .${ext}. Allowed formats: ${allowedExtensions.join(', ')}`);
+  }
+
   const tmpInputPath = path.join(tmpDir, `${jobId}_input.${ext}`);
 
   await appendLog(`[${new Date().toISOString()}] Job ${jobId} Phase 1 started`);
