@@ -22,9 +22,10 @@ const defaultContext: BusinessContext = {
 
 interface Props {
   onChange: (ctx: BusinessContext) => void;
+  onClose?: () => void;
 }
 
-export function ContextSidebar({ onChange }: Props) {
+export function ContextSidebar({ onChange, onClose }: Props) {
   const [ctx, setCtx] = useState<BusinessContext>(defaultContext);
 
   useEffect(() => {
@@ -54,8 +55,21 @@ export function ContextSidebar({ onChange }: Props) {
     >
       {/* Header */}
       <div className="px-5 pt-6 pb-4 border-b border-[#1E2329]">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-[#E8FF47] text-xs font-mono tracking-widest uppercase">Context</span>
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[#E8FF47] text-xs font-mono tracking-widest uppercase">Context</span>
+          </div>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="md:hidden p-1 text-[#5A6478] hover:text-[#EEF2F7] transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          )}
         </div>
         <p className="text-[#353D4A] text-xs leading-relaxed">
           Saved to browser. Powers every reel.

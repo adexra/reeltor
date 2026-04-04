@@ -112,12 +112,14 @@ function PhonePreview({ videoFile, startTime, hookText }: PreviewProps) {
         Live Preview
       </span>
 
-      {/* Phone bezel */}
+      {/* Phone bezel - responsive sizing */}
       <div
-        className="relative rounded-[28px] overflow-hidden"
+        className="relative rounded-[20px] lg:rounded-[28px] overflow-hidden"
         style={{
-          width: 270,
-          height: 480,
+          width: 'min(270px, 90vw)',
+          height: 'min(480px, 160vw)',
+          maxWidth: 270,
+          maxHeight: 480,
           background: '#07080A',
           boxShadow: '0 0 0 3px #1E2329, 0 0 0 5px #0D0F12, 0 20px 60px rgba(0,0,0,0.6)',
         }}
@@ -427,10 +429,15 @@ export function GeneratorPanel({ context, onPhase1Complete }: Props) {
   const canGenerate = !!videoFile && !!videoIdea.trim() && !!context.businessName && !isRunning;
 
   return (
-    <div className="flex gap-10 w-full max-w-5xl">
+    <div className="flex flex-col lg:flex-row gap-6 lg:gap-10 w-full max-w-5xl mx-auto">
+
+      {/* ── Mobile Preview (top on mobile) ── */}
+      <div className="lg:hidden flex justify-center mb-4">
+        <PhonePreview videoFile={videoFile} startTime={startTime} hookText={videoIdea} />
+      </div>
 
       {/* ── Left: Form ── */}
-      <div className="flex flex-col gap-7 flex-1 min-w-0">
+      <div className="flex flex-col gap-6 lg:gap-7 flex-1 min-w-0 order-2 lg:order-1">
 
         {/* Header */}
         <div className="flex items-start justify-between">
