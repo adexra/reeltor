@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   api: {
     bodyParser: {
-      sizeLimit: '100mb', // Allow large video uploads
+      sizeLimit: '500mb', // Allow large video uploads up to 500MB
     },
   },
   serverExternalPackages: [
