@@ -272,6 +272,67 @@ function drawPlaceholder(ctx: CanvasRenderingContext2D, hookText: string, w: num
   drawOverlay(ctx, hookText || 'YOUR HOOK HERE', w, h);
 }
 
+// ── Chunked Upload for Large Files ──────────────────────────────────────────
+
+async function uploadInChunks(
+  file: File,
+  config: GenerateRequest,
+  chunkSize: number,
+  onProgress: (progress: number) => void
+): Promise<string> {
+  const totalChunks = Math.ceil(file.size / chunkSize);
+  const uploadId = crypto.randomUUID();
+
+  // Initialize upload
+  const initRes = await fetch('/api/generate/chunked', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uploadId,
+      fileName: file.name,
+      fileSize: file.size,
+      totalChunks,
+      config,
+    }),
+  });
+
+  if (!initRes.ok) throw new Error(`Failed to initialize upload: ${initRes.status}`);
+  const { jobId } = await initRes.json();
+
+  // Upload chunks
+  for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+    const start = chunkIndex * chunkSize;
+    const end = Math.min(start + chunkSize, file.size);
+    const chunk = file.slice(start, end);
+
+    const formData = new FormData();
+    formData.append('uploadId', uploadId);
+    formData.append('chunkIndex', chunkIndex.toString());
+    formData.append('chunk', chunk);
+
+    const chunkRes = await fetch('/api/generate/chunked', {
+      method: 'PUT',
+      body: formData,
+    });
+
+    if (!chunkRes.ok) throw new Error(`Failed to upload chunk ${chunkIndex}: ${chunkRes.status}`);
+
+    const progress = Math.round(((chunkIndex + 1) / totalChunks) * 100);
+    onProgress(progress);
+  }
+
+  // Finalize upload
+  const finalizeRes = await fetch('/api/generate/chunked', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uploadId }),
+  });
+
+  if (!finalizeRes.ok) throw new Error(`Failed to finalize upload: ${finalizeRes.status}`);
+
+  return jobId;
+}
+
 // ── Main Generator Panel ─────────────────────────────────────────────────────
 
 export function GeneratorPanel({ context, onPhase1Complete }: Props) {
@@ -313,16 +374,26 @@ export function GeneratorPanel({ context, onPhase1Complete }: Props) {
       context,
     };
 
-    const formData = new FormData();
-    formData.append('video', videoFile);
-    formData.append('config', JSON.stringify(generateRequest));
-
     let jobId: string;
     try {
-      const res = await fetch('/api/generate', { method: 'POST', body: formData });
-      if (!res.ok) throw new Error(`Server error: ${res.status}`);
-      const data = await res.json();
-      jobId = data.jobId;
+      // Check if file is very large (> 500MB) and use chunked upload
+      const CHUNK_SIZE = 50 * 1024 * 1024; // 50MB chunks
+      if (videoFile.size > 500 * 1024 * 1024) {
+        setProgressEvent({ step: 'upload', progress: 0, jobId: 'chunked', message: 'Starting chunked upload...' });
+        jobId = await uploadInChunks(videoFile, generateRequest, CHUNK_SIZE, (progress) => {
+          setProgressEvent({ step: 'upload', progress, jobId: 'chunked', message: `Uploading... ${Math.round(progress)}%` });
+        });
+      } else {
+        // Use regular upload for smaller files
+        const formData = new FormData();
+        formData.append('video', videoFile);
+        formData.append('config', JSON.stringify(generateRequest));
+
+        const res = await fetch('/api/generate', { method: 'POST', body: formData });
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+        const data = await res.json();
+        jobId = data.jobId;
+      }
     } catch (err) {
       setProgressEvent({ step: 'error', progress: 0, error: err instanceof Error ? err.message : 'Failed to start job' });
       setIsRunning(false);
@@ -407,7 +478,11 @@ export function GeneratorPanel({ context, onPhase1Complete }: Props) {
                   <rect x="2" y="2" width="20" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/>
                 </svg>
                 <span className="text-[#E8FF47] text-sm font-mono truncate max-w-xs">{videoFile.name}</span>
-                <span className="text-[#353D4A] text-xs">{(videoFile.size / 1024 / 1024).toFixed(1)} MB · click to replace</span>
+                <span className="text-[#353D4A] text-xs">
+                  {(videoFile.size / 1024 / 1024).toFixed(1)} MB
+                  {videoFile.size > 500 * 1024 * 1024 ? ' · chunked upload' : ''}
+                   · click to replace
+                </span>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-2">
@@ -416,7 +491,7 @@ export function GeneratorPanel({ context, onPhase1Complete }: Props) {
                   <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
                 </svg>
                 <span className="text-[#5A6478] text-sm">Drop or <span className="text-[#EEF2F7] underline underline-offset-2">browse</span></span>
-                <span className="text-[10px] font-mono text-[#353D4A] uppercase tracking-widest">.mp4 · .mov · .webm · max 500 MB</span>
+                <span className="text-[10px] font-mono text-[#353D4A] uppercase tracking-widest">.mp4 · .mov · .webm · up to 2GB</span>
               </div>
             )}
           </label>
