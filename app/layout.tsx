@@ -22,6 +22,25 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'Reelator — AI Reel Generator',
   description: 'Generate Instagram Reels and TikTok clips with AI-powered copy.',
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
+  themeColor: '#07080A',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Reelator',
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

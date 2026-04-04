@@ -461,7 +461,7 @@ export function GeneratorPanel({ context, onPhase1Complete }: Props) {
         </div>
 
         {/* Upload */}
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3 md:gap-2">
           <span className="text-[10px] font-mono text-[#5A6478] uppercase tracking-[0.12em]">Video File</span>
           <label
             htmlFor={dropZoneInputId}
@@ -469,13 +469,14 @@ export function GeneratorPanel({ context, onPhase1Complete }: Props) {
             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
             className={`
-              relative flex flex-col items-center justify-center h-28 rounded cursor-pointer
-              border transition-all duration-200 select-none
+              relative flex flex-col items-center justify-center h-32 md:h-28 rounded-lg cursor-pointer
+              border-2 transition-all duration-200 select-none
               ${isDragging
-                ? 'border-[#E8FF47] bg-[#E8FF4708] shadow-[0_0_0_1px_#E8FF4730]'
+                ? 'border-[#E8FF47] bg-[#E8FF4708] shadow-[0_0_0_1px_#E8FF4730] scale-[1.02]'
                 : videoFile
-                ? 'border-[#E8FF4740] bg-[#E8FF4705]'
-                : 'border-dashed border-[#1E2329] hover:border-[#2A3140] hover:bg-[#0D0F12]'}
+                ? 'border-[#E8FF4740] bg-[#E8FF4705] shadow-sm'
+                : 'border-dashed border-[#1E2329] hover:border-[#2A3140] hover:bg-[#0D0F12] active:scale-[0.98]'
+              }
             `}
           >
             <input id={dropZoneInputId} type="file" accept=".mp4,.mov,.webm,video/mp4,video/quicktime,video/webm" onChange={handleFileChange} className="sr-only" />
@@ -569,9 +570,9 @@ export function GeneratorPanel({ context, onPhase1Complete }: Props) {
 
         {/* Generate */}
         <button onClick={handleGenerate} disabled={!canGenerate}
-          className={`w-full py-3.5 rounded font-mono text-sm tracking-[0.08em] uppercase transition-all duration-200
+          className={`w-full py-4 md:py-3.5 rounded-lg md:rounded font-mono text-sm tracking-[0.08em] uppercase transition-all duration-200 active:scale-[0.96] touch-manipulation
             ${canGenerate
-              ? 'bg-[#E8FF47] text-[#07080A] font-bold hover:bg-[#F2FF70] active:scale-[0.99]'
+              ? 'bg-[#E8FF47] text-[#07080A] font-bold hover:bg-[#F2FF70] shadow-lg hover:shadow-xl active:shadow-md'
               : 'bg-[#0D0F12] text-[#353D4A] border border-[#1E2329] cursor-not-allowed'}`}
         >
           {isRunning ? <span className="flex items-center justify-center gap-2"><SpinnerIcon />Processing…</span> : 'Generate Reel'}

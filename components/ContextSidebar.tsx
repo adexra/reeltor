@@ -50,33 +50,32 @@ export function ContextSidebar({ onChange, onClose }: Props) {
   return (
     <aside
       style={{ fontFamily: 'var(--font-body)' }}
-      className="w-64 shrink-0 flex flex-col h-full overflow-y-auto"
-      // border right
+      className="w-80 md:w-64 shrink-0 flex flex-col h-full overflow-y-auto bg-[#07080A]"
     >
       {/* Header */}
-      <div className="px-5 pt-6 pb-4 border-b border-[#1E2329]">
+      <div className="px-6 pt-8 pb-6 border-b border-[#1E2329]">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
-            <span className="text-[#E8FF47] text-xs font-mono tracking-widest uppercase">Context</span>
+            <span className="text-[#E8FF47] text-sm font-mono tracking-widest uppercase">Context</span>
           </div>
           {onClose && (
             <button
               onClick={onClose}
-              className="md:hidden p-1 text-[#5A6478] hover:text-[#EEF2F7] transition-colors"
+              className="md:hidden p-2 -mr-2 text-[#5A6478] hover:text-[#EEF2F7] transition-colors rounded-full hover:bg-[#1E2329]"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="18" y1="6" x2="6" y2="18"/>
                 <line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
             </button>
           )}
         </div>
-        <p className="text-[#353D4A] text-xs leading-relaxed">
+        <p className="text-[#353D4A] text-sm leading-relaxed">
           Saved to browser. Powers every reel.
         </p>
       </div>
 
-      <div className="flex flex-col gap-6 p-5 flex-1">
+      <div className="flex flex-col gap-8 p-6 flex-1">
         {/* Business Name */}
         <SideField label="Business">
           <input
@@ -133,10 +132,10 @@ export function ContextSidebar({ onChange, onClose }: Props) {
       </div>
 
       {/* Footer */}
-      <div className="px-5 py-4 border-t border-[#1E2329]">
+      <div className="px-6 py-5 border-t border-[#1E2329]">
         <div className="flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-[#E8FF47] opacity-60" />
-          <span className="text-[10px] font-mono text-[#353D4A] uppercase tracking-widest">
+          <span className="text-[11px] font-mono text-[#353D4A] uppercase tracking-widest">
             Auto-saved
           </span>
         </div>

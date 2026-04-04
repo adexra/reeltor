@@ -18,13 +18,45 @@ export default function HomePage() {
   const [generationResult, setGenerationResult] = useState<GenerationResult | null>(null);
   const [renderDone,       setRenderDone]       = useState(false);
   const [sidebarOpen,      setSidebarOpen]      = useState(false);
+  const [touchStartX,      setTouchStartX]      = useState<number | null>(null);
+
+  // Mobile swipe to open/close sidebar
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX === null) return;
+
+    const touchEndX = e.changedTouches[0].clientX;
+    const deltaX = touchEndX - touchStartX;
+
+    // Swipe right to open sidebar (from left edge)
+    if (deltaX > 50 && touchStartX < 50 && !sidebarOpen) {
+      setSidebarOpen(true);
+    }
+    // Swipe left to close sidebar
+    else if (deltaX < -50 && sidebarOpen) {
+      setSidebarOpen(false);
+    }
+
+    setTouchStartX(null);
+  };
 
   function handlePhase1Complete(result: GenerationResult) {
     setGenerationResult(result);
+    // Mobile haptic feedback simulation
+    if (navigator.vibrate) {
+      navigator.vibrate(50);
+    }
   }
 
   function handleRenderComplete(_jobId: string) {
     setRenderDone(true);
+    // Mobile haptic feedback simulation
+    if (navigator.vibrate) {
+      navigator.vibrate([50, 50, 50]);
+    }
   }
 
   function handleReset() {
@@ -33,7 +65,12 @@ export default function HomePage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#07080A]" suppressHydrationWarning>
+    <div
+      className="flex h-screen overflow-hidden bg-[#07080A]"
+      suppressHydrationWarning
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
 
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
