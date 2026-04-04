@@ -67,19 +67,36 @@ function PhonePreview({ videoFile, startTime, hookText }: PreviewProps) {
 
     const url = URL.createObjectURL(videoFile);
     video.src = url;
-    video.currentTime = startTime;
 
-    const draw = () => {
-      // Canvas is 270×480 (1080×1920 / 4) for display
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      drawOverlay(ctx, hookText, canvas.width, canvas.height);
+    const cleanup = () => {
       URL.revokeObjectURL(url);
     };
 
-    video.onseeked = draw;
-    video.onerror  = () => { URL.revokeObjectURL(url); };
+    const draw = () => {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      drawOverlay(ctx, hookText, canvas.width, canvas.height);
+      cleanup();
+    };
 
-    return () => { URL.revokeObjectURL(url); };
+    const handleLoaded = () => {
+      if (video.readyState >= 1) {
+        video.currentTime = startTime;
+      }
+    };
+
+    const handleSeeked = () => draw();
+    const handleError = cleanup;
+
+    video.addEventListener('loadedmetadata', handleLoaded);
+    video.addEventListener('seeked', handleSeeked);
+    video.addEventListener('error', handleError);
+
+    return () => {
+      video.removeEventListener('loadedmetadata', handleLoaded);
+      video.removeEventListener('seeked', handleSeeked);
+      video.removeEventListener('error', handleError);
+      cleanup();
+    };
   }, [videoFile, startTime, hookText, fontReady]);
 
   // Redraw overlay when hookText changes (no video re-seek needed if same frame)

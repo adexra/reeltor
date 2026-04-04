@@ -19,18 +19,23 @@ async function azureChat(systemPrompt: string, userPrompt: string): Promise<stri
 
   const url = `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=2024-02-01`;
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'api-key': apiKey },
-    body: JSON.stringify({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user',   content: userPrompt   },
-      ],
-      temperature: 0.9,
-      max_tokens: 3000,
-    }),
-  });
+  let res;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'api-key': apiKey },
+      body: JSON.stringify({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user',   content: userPrompt   },
+        ],
+        temperature: 0.9,
+        max_tokens: 3000,
+      }),
+    });
+  } catch (err) {
+    throw new Error(`Azure OpenAI request failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 
   if (!res.ok) {
     const errText = await res.text();
