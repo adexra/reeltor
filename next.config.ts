@@ -1,10 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  api: {
-    bodyParser: {
-      sizeLimit: '2gb', // Allow very large video uploads up to 2GB
-    },
+  experimental: {
+    serverComponentsExternalPackages: [
+      'canvas',
+      'fluent-ffmpeg',
+      '@ffmpeg-installer/ffmpeg',
+    ],
   },
   serverExternalPackages: [
     'canvas',
