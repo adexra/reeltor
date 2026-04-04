@@ -1,65 +1,122 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState } from 'react';
+import { ContextSidebar } from '../components/ContextSidebar';
+import { GeneratorPanel } from '../components/GeneratorPanel';
+import { SelectionPanel } from '../components/SelectionPanel';
+import type { BusinessContext, GenerationResult } from '../schema';
+
+const defaultContext: BusinessContext = {
+  businessName: '',
+  targetAudience: '',
+  tone: 'Inspirational',
+  productDescription: '',
+};
+
+export default function HomePage() {
+  const [context,          setContext]          = useState<BusinessContext>(defaultContext);
+  const [generationResult, setGenerationResult] = useState<GenerationResult | null>(null);
+  const [renderDone,       setRenderDone]       = useState(false);
+
+  function handlePhase1Complete(result: GenerationResult) {
+    setGenerationResult(result);
+  }
+
+  function handleRenderComplete(_jobId: string) {
+    setRenderDone(true);
+  }
+
+  function handleReset() {
+    setGenerationResult(null);
+    setRenderDone(false);
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <div className="flex h-screen overflow-hidden bg-[#07080A]" suppressHydrationWarning>
+
+      {/* Sidebar */}
+      <div className="relative border-r border-[#1E2329]">
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#E8FF4740] to-transparent" />
+        <ContextSidebar onChange={setContext} />
+      </div>
+
+      {/* Main */}
+      <main className="flex-1 overflow-y-auto">
+        {/* Top nav */}
+        <div className="sticky top-0 z-10 flex items-center justify-between px-8 py-4 border-b border-[#1E2329] bg-[#07080A]/90 backdrop-blur-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-6 h-6 border border-[#E8FF47] rounded-sm flex items-center justify-center">
+              <span className="text-[#E8FF47] text-[10px] font-mono font-bold">R</span>
+            </div>
+            <span
+              style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}
+              className="text-sm font-bold text-[#EEF2F7]"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              Reelator
+            </span>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {generationResult && !renderDone && (
+              <button
+                onClick={handleReset}
+                className="text-[10px] font-mono text-[#353D4A] hover:text-[#5A6478] transition-colors uppercase tracking-widest"
+              >
+                ← New Reel
+              </button>
+            )}
+            <div className="flex items-center gap-1 text-[10px] font-mono text-[#353D4A] uppercase tracking-widest">
+              <span className="w-1 h-1 rounded-full bg-[#E8FF47] opacity-70" />
+              <span>Ready</span>
+            </div>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* Content */}
+        <div className="px-8 py-10">
+          {renderDone ? (
+            <RenderSuccess onReset={handleReset} />
+          ) : generationResult ? (
+            <SelectionPanel result={generationResult} onRenderComplete={handleRenderComplete} />
+          ) : (
+            <GeneratorPanel context={context} onPhase1Complete={handlePhase1Complete} />
+          )}
         </div>
       </main>
+    </div>
+  );
+}
+
+function RenderSuccess({ onReset }: { onReset: () => void }) {
+  return (
+    <div className="flex flex-col items-start gap-6 max-w-md">
+      <div className="flex items-center gap-3">
+        <span className="w-2 h-2 rounded-full bg-[#E8FF47]" />
+        <span className="text-[#E8FF47] font-mono text-sm uppercase tracking-widest">Reel rendered</span>
+      </div>
+      <h2
+        style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.03em' }}
+        className="text-2xl font-extrabold text-[#EEF2F7]"
+      >
+        Your reel is ready.
+      </h2>
+      <p className="text-[#5A6478] text-sm">
+        It has been saved to your library. You can download it or generate another.
+      </p>
+      <div className="flex gap-3">
+        <a
+          href="/library"
+          className="px-5 py-2.5 bg-[#E8FF47] text-[#07080A] font-mono text-sm font-bold rounded hover:bg-[#F2FF70] transition-colors uppercase tracking-wide"
+        >
+          View Library
+        </a>
+        <button
+          onClick={onReset}
+          className="px-5 py-2.5 border border-[#1E2329] text-[#5A6478] font-mono text-sm rounded hover:border-[#2A3140] hover:text-[#EEF2F7] transition-colors uppercase tracking-wide"
+        >
+          New Reel
+        </button>
+      </div>
     </div>
   );
 }

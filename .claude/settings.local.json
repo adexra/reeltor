@@ -1,7 +1,29 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx create-next-app@latest . --typescript --tailwind --app --no-eslint --no-src-dir --import-alias \"@/*\" --yes)"
+      "Bash(npx create-next-app@latest . --typescript --tailwind --app --no-eslint --no-src-dir --import-alias \"@/*\" --yes)",
+      "Bash(npm install:*)",
+      "Bash(mkdir -p output heres_whats_up)",
+      "Bash(touch heres_whats_up/updates.log heres_whats_up/errors.log)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(taskkill /F /IM node.exe)",
+      "Read(//tmp/**)",
+      "Bash(curl -s http://localhost:3000/api/library)",
+      "Bash(curl -s -X POST http://localhost:3000/api/generate)",
+      "Bash(ffmpeg -version)",
+      "Bash(ffmpeg -f lavfi -i color=black:size=1080x1920:duration=1 -vf \"drawtext=text='Test Hook':fontsize=72:fontcolor=white:borderw=2:bordercolor=black:x=\\(w-text_w\\)/2:y=h*0.30\" -frames:v 1 -f null -)",
+      "Bash(ffmpeg -f lavfi -i color=black:size=1920x1080:duration=3 -filter_complex '[0:v]crop=min\\(iw\\\\,ih*9/16\\):min\\(ih\\\\,iw*16/9\\):\\(iw-min\\(iw\\\\,ih*9/16\\)\\)/2:\\(ih-min\\(ih\\\\,iw*16/9\\)\\)/2[cropped];[cropped]scale=1080:1920[scaled];[scaled]drawtext=text='\\\\''Test Hook'\\\\'':fontsize=72:fontcolor=white:borderw=2:bordercolor=black:x=\\(w-text_w\\)/2:y=h*0.30:font=DejaVu Sans Bold:textwidth_fix=1[hooked];[hooked]drawtext=text='\\\\''Read Description'\\\\'':fontsize=42:fontcolor=white@0.8:x=\\(w-text_w\\)/2:y=h*0.30+72+100:font=DejaVu Sans[out]' -map '[out]' -frames:v 1 -f null -)",
+      "Bash(ffmpeg -f lavfi -i color=black:size=100x100:duration=1 -vf \"drawtext=text='x':font=Arial\" -frames:v 1 -f null -)",
+      "Bash(ffmpeg -f lavfi -i color=black:size=100x100:duration=1 -vf \"drawtext=text='x':font=Segoe UI Bold\" -frames:v 1 -f null -)",
+      "Bash(ffmpeg -f lavfi -i color=black:size=1920x1080:duration=3 -filter_complex '[0:v]crop=min\\(iw\\\\,ih*9/16\\):min\\(ih\\\\,iw*16/9\\):\\(iw-min\\(iw\\\\,ih*9/16\\)\\)/2:\\(ih-min\\(ih\\\\,iw*16/9\\)\\)/2[cropped];[cropped]scale=1080:1920[scaled];[scaled]drawtext=text='\\\\''Test Hook'\\\\'':fontsize=72:fontcolor=white:borderw=2:bordercolor=black:x=\\(w-text_w\\)/2:y=h*0.30[hooked];[hooked]drawtext=text='\\\\''Read Description'\\\\'':fontsize=42:fontcolor=white@0.8:x=\\(w-text_w\\)/2:y=h*0.30+72+100[out]' -map '[out]' -frames:v 1 -f null -)",
+      "Bash(mkdir -p F:/automated-sites/Automations/reelator/assets/fonts)",
+      "Bash(curl -L \"https://github.com/google/fonts/raw/main/ofl/bebasneue/BebasNeue-Regular.ttf\" -o BebasNeue-Regular.ttf)",
+      "Bash(curl -L \"https://github.com/google/fonts/raw/main/ofl/dmsans/DMSans%5Bopsz%2Cwght%5D.ttf\" -o DMSans-Regular.ttf)",
+      "Bash(ffmpeg -f lavfi -i color=black:size=1080x1920:duration=1 -vf 'drawtext=text='\\\\''TEST HOOK'\\\\'':fontfile='\\\\''F\\\\:/automated-sites/Automations/reelator/assets/fonts/BebasNeue-Regular.ttf'\\\\'':fontsize=88:fontcolor=white:borderw=3:bordercolor=black:x=\\(w-text_w\\)/2:y=h*0.35' -frames:v 1 -f null -)",
+      "Bash(node -e \"const i = require\\('@ffmpeg-installer/ffmpeg'\\); console.log\\(i.path\\)\")",
+      "Bash(node -e \"console.log\\(require.resolve\\('@ffmpeg-installer/ffmpeg'\\)\\)\")"
     ]
   }
 }

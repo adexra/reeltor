@@ -1,7 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  serverExternalPackages: [
+    'canvas',
+    'fluent-ffmpeg',
+    '@ffmpeg-installer/ffmpeg',
+  ],
 };
 
 export default nextConfig;
