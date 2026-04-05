@@ -151,23 +151,22 @@ async function handleCaptions(body: CaptionsBody): Promise<NextResponse> {
 async function handleRender(body: RenderBody): Promise<NextResponse> {
   const { jobId, selectedHookText, selectedCaptionId, design } = body;
 
-  // Respond to the frontend immediately — rendering is async on Azure.
-  // The container updates reel_jobs.status itself when it finishes.
-  // Frontend polls SSE (or the job row directly) for completion.
-  const response = NextResponse.json(
-    { success: true, jobId, status: 'rendering' },
-    { status: 202 },
-  );
-
-  // Fire-and-forget — errors write to the job row and SSE
-  triggerAzureRender(jobId, selectedHookText, selectedCaptionId, design).catch(async (err) => {
+  // Vercel kills the process the moment a response is returned, so we cannot
+  // use fire-and-forget here. We must fully await the Azure POST before
+  // responding — the container does the heavy lifting asynchronously itself.
+  try {
+    await triggerAzureRender(jobId, selectedHookText, selectedCaptionId, design);
+  } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await appendErrorLog(`[${new Date().toISOString()}] Job ${jobId} render trigger error: ${message}`);
     await failJob(jobId, message).catch(() => {});
-    emitProgress(jobId, { step: 'error', progress: 0, jobId, error: message });
-  });
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 
-  return response;
+  return NextResponse.json(
+    { success: true, jobId, status: 'rendering' },
+    { status: 202 },
+  );
 }
 
 async function triggerAzureRender(
