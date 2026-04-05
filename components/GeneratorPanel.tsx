@@ -332,44 +332,61 @@ export function GeneratorPanel({ context, onPhase1Complete }: Props) {
       context,
     };
 
-    let jobId: string;
-    try {
-      const formData = new FormData();
-      formData.append('video', videoFile);
-      formData.append('config', JSON.stringify(generateRequest));
+    const formData = new FormData();
+    formData.append('video', videoFile);
+    formData.append('config', JSON.stringify(generateRequest));
 
-      const res = await fetch('/api/generate', { method: 'POST', body: formData });
-      if (!res.ok) throw new Error(`Server error: ${res.status}`);
-      const data = await res.json();
-      jobId = data.jobId;
+    let res: Response;
+    try {
+      res = await fetch('/api/generate', { method: 'POST', body: formData });
+      if (!res.ok || !res.body) throw new Error(`Server error: ${res.status}`);
     } catch (err) {
       setProgressEvent({ step: 'error', progress: 0, error: err instanceof Error ? err.message : 'Failed to start job' });
       setIsRunning(false);
       return;
     }
 
-    const es = new EventSource(`/api/generate/progress/${jobId}`);
-    es.onmessage = (e) => {
-      const event: SSEProgressEvent = JSON.parse(e.data);
-      setProgressEvent(event);
-      if (event.step === 'ready' && event.result) {
-        setIsRunning(false);
-        es.close();
-        onPhase1Complete(event.result);
-      } else if (event.step === 'done') {
-        setCompletedJobId(jobId);
-        setIsRunning(false);
-        es.close();
-      } else if (event.step === 'error') {
-        setIsRunning(false);
-        es.close();
+    // Read the SSE stream directly from the POST response body
+    const reader  = res.body.getReader();
+    const decoder = new TextDecoder();
+    let   buffer  = '';
+    let   currentJobId = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';   // keep incomplete last line
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          let event: SSEProgressEvent;
+          try { event = JSON.parse(line.slice(6)); } catch { continue; }
+
+          if (event.jobId && !currentJobId) currentJobId = event.jobId;
+          setProgressEvent(event);
+
+          if (event.step === 'ready' && event.result) {
+            setIsRunning(false);
+            onPhase1Complete(event.result);
+            return;
+          } else if (event.step === 'done') {
+            if (currentJobId) setCompletedJobId(currentJobId);
+            setIsRunning(false);
+            return;
+          } else if (event.step === 'error') {
+            setIsRunning(false);
+            return;
+          }
+        }
       }
-    };
-    es.onerror = () => {
-      setProgressEvent({ step: 'error', progress: 0, error: 'Connection lost' });
+    } catch (err) {
+      setProgressEvent({ step: 'error', progress: 0, error: err instanceof Error ? err.message : 'Connection lost' });
       setIsRunning(false);
-      es.close();
-    };
+    }
   };
 
   const canGenerate = !!videoFile && !!videoIdea.trim() && !!context.businessName && !isRunning;
