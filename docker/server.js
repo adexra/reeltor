@@ -60,14 +60,21 @@ async function getBundle() {
   if (bundleCache) return bundleCache;
 
   console.log('[bundle] Building Remotion bundle…');
-  // The composition entry file is one directory up (Next.js app root)
-  const entryPoint = path.resolve(__dirname, '../skills/dynamic-video-editor/index.tsx');
+  // skills/ is co-located with server.js at /app/skills/
+  const entryPoint = path.resolve(__dirname, 'skills/dynamic-video-editor/index.tsx');
 
   bundleCache = await bundle({
     entryPoint,
-    // Webpack override: alias the schema so the container doesn't need the full
-    // Next.js project installed — we copy schema.ts at build time.
-    webpackOverride: (config) => config,
+    // Alias '../../schema' (used by composition) to the copied schema.ts
+    webpackOverride: (config) => {
+      config.resolve = config.resolve ?? {};
+      config.resolve.alias = {
+        ...(config.resolve.alias ?? {}),
+        '../../schema': path.resolve(__dirname, 'schema.ts'),
+        '../schema':    path.resolve(__dirname, 'schema.ts'),
+      };
+      return config;
+    },
   });
 
   console.log('[bundle] Bundle ready at:', bundleCache);
