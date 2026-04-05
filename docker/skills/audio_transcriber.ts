@@ -185,3 +185,4 @@ export async function generateWordTimestamps(
     duration: data.duration ?? 0,
   };
 }
+
