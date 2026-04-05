@@ -2,16 +2,12 @@
 
 import { useState } from 'react';
 import type { GenerationResult, HookOption, CaptionOption, RenderResult, DesignConfig } from '../schema';
-import { DesignEditor } from './DesignEditor';
+import { DesignEditor, DEFAULT_DESIGN } from './DesignEditor';
+import { DesignStudio, DESIGN_STUDIO_DEFAULTS } from './DesignStudio';
 
-// ── Stage 1: Hook Selection ───────────────────────────────────────────────────
+// ── Stages ────────────────────────────────────────────────────────────────────
 
-interface HookStageProps {
-  result: GenerationResult;
-  onHookConfirmed: (hookId: string, hookText: string, renderResult: RenderResult) => void;
-}
-
-type Stage = 'hook' | 'caption' | 'design';
+type Stage = 'hook' | 'caption' | 'brand' | 'design';
 
 export function SelectionPanel({ result, onRenderComplete }: {
   result: GenerationResult;
@@ -19,6 +15,10 @@ export function SelectionPanel({ result, onRenderComplete }: {
 }) {
   const [stage,        setStage]        = useState<Stage>('hook');
   const [renderResult, setRenderResult] = useState<RenderResult | null>(null);
+  const [design,       setDesign]       = useState<DesignConfig>({
+    ...DEFAULT_DESIGN,
+    ...DESIGN_STUDIO_DEFAULTS,
+  });
 
   function handleHookConfirmed(_hookId: string, _hookText: string, rr: RenderResult) {
     setRenderResult(rr);
@@ -27,6 +27,11 @@ export function SelectionPanel({ result, onRenderComplete }: {
 
   function handleCaptionConfirmed(rr: RenderResult) {
     setRenderResult(rr);
+    setStage('brand');
+  }
+
+  function handleBrandConfirmed(updatedDesign: DesignConfig) {
+    setDesign(updatedDesign);
     setStage('design');
   }
 
@@ -34,9 +39,21 @@ export function SelectionPanel({ result, onRenderComplete }: {
     return (
       <RenderStage
         renderResult={renderResult}
+        design={design}
+        onDesignChange={setDesign}
         onRenderComplete={onRenderComplete}
+        onBack={() => setStage('brand')}
+      />
+    );
+  }
+
+  if (stage === 'brand' && renderResult) {
+    return (
+      <BrandStage
+        renderResult={renderResult}
+        design={design}
+        onConfirmed={handleBrandConfirmed}
         onBack={() => setStage('caption')}
-        onDesignChange={(design) => setRenderResult({ ...renderResult, design })}
       />
     );
   }
@@ -59,7 +76,12 @@ export function SelectionPanel({ result, onRenderComplete }: {
   );
 }
 
-// ── Hook Stage ────────────────────────────────────────────────────────────────
+// ── Hook Stage — Step 1 ───────────────────────────────────────────────────────
+
+interface HookStageProps {
+  result: GenerationResult;
+  onHookConfirmed: (hookId: string, hookText: string, renderResult: RenderResult) => void;
+}
 
 function HookStage({ result, onHookConfirmed }: HookStageProps) {
   const [selectedHookId, setSelectedHookId] = useState(result.selectedHookId);
@@ -93,19 +115,9 @@ function HookStage({ result, onHookConfirmed }: HookStageProps) {
 
   return (
     <div className="flex flex-col gap-8 max-w-2xl w-full">
-
-      {/* Header */}
       <div>
-        <div className="flex items-center gap-2 mb-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#E8FF47]" />
-          <span className="text-[10px] font-mono text-[#E8FF47] uppercase tracking-widest">
-            Step 1 of 3
-          </span>
-        </div>
-        <h2
-          style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.03em' }}
-          className="text-2xl font-extrabold text-[#EEF2F7] leading-none"
-        >
+        <StepLabel step={1} total={4} color="#E8FF47" />
+        <h2 className="text-2xl font-extrabold text-[#EEF2F7] leading-none" style={{ letterSpacing: '-0.03em' }}>
           Choose Your Hook
         </h2>
         <p className="text-[#5A6478] text-sm mt-2">
@@ -113,7 +125,6 @@ function HookStage({ result, onHookConfirmed }: HookStageProps) {
         </p>
       </div>
 
-      {/* Hook list */}
       <section className="flex flex-col gap-3">
         {result.hooks.map((hook) => (
           <HookCard
@@ -125,14 +136,8 @@ function HookStage({ result, onHookConfirmed }: HookStageProps) {
         ))}
       </section>
 
-      {/* Error */}
-      {error && (
-        <p className="text-xs text-red-400 font-mono border border-red-900/40 bg-red-950/20 px-3 py-2 rounded">
-          {error}
-        </p>
-      )}
+      {error && <ErrorBox message={error} />}
 
-      {/* Confirm button */}
       <button
         onClick={handleConfirm}
         disabled={isLoading}
@@ -142,46 +147,31 @@ function HookStage({ result, onHookConfirmed }: HookStageProps) {
             : 'bg-[#E8FF47] text-[#07080A] font-bold hover:bg-[#F2FF70] active:scale-[0.99]'
           }`}
       >
-        {isLoading ? (
-          <span className="flex items-center justify-center gap-2">
-            <SpinnerIcon />
-            Writing captions for this hook…
-          </span>
-        ) : (
-          'Use this hook → write captions'
-        )}
+        {isLoading ? <LoadingLabel label="Writing captions for this hook…" /> : 'Use this hook → write captions'}
       </button>
     </div>
   );
 }
 
-// ── Caption Stage ─────────────────────────────────────────────────────────────
+// ── Caption Stage — Step 2 ────────────────────────────────────────────────────
 
-interface CaptionStageProps {
+function CaptionStage({
+  renderResult,
+  onCaptionConfirmed,
+  onBack,
+}: {
   renderResult: RenderResult;
   onCaptionConfirmed: (rr: RenderResult) => void;
   onBack: () => void;
-}
-
-function CaptionStage({ renderResult, onCaptionConfirmed, onBack }: CaptionStageProps) {
+}) {
   const [selectedCaptionId, setSelectedCaptionId] = useState(renderResult.selectedCaptionId);
   const [expandedCaption,   setExpandedCaption]   = useState<string | null>(null);
 
   return (
     <div className="flex flex-col gap-8 max-w-2xl w-full">
-
-      {/* Header */}
       <div>
-        <div className="flex items-center gap-2 mb-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#3B82F6]" />
-          <span className="text-[10px] font-mono text-[#3B82F6] uppercase tracking-widest">
-            Step 2 of 3
-          </span>
-        </div>
-        <h2
-          style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.03em' }}
-          className="text-2xl font-extrabold text-[#EEF2F7] leading-none"
-        >
+        <StepLabel step={2} total={4} color="#3B82F6" />
+        <h2 className="text-2xl font-extrabold text-[#EEF2F7] leading-none" style={{ letterSpacing: '-0.03em' }}>
           Choose Your Caption
         </h2>
         <p className="text-[#5A6478] text-sm mt-2">
@@ -190,7 +180,6 @@ function CaptionStage({ renderResult, onCaptionConfirmed, onBack }: CaptionStage
         </p>
       </div>
 
-      {/* Caption list */}
       <section className="flex flex-col gap-3">
         {renderResult.captions.map((caption) => (
           <CaptionCard
@@ -206,55 +195,96 @@ function CaptionStage({ renderResult, onCaptionConfirmed, onBack }: CaptionStage
         ))}
       </section>
 
-      {/* Hashtags */}
       <section className="flex flex-col gap-3">
         <SectionLabel>Hashtags</SectionLabel>
         <div className="flex flex-wrap gap-2">
           {renderResult.hashtags.map((tag) => (
-            <span
-              key={tag}
-              className="text-xs font-mono text-[#5A6478] border border-[#1E2329] px-2.5 py-1 rounded bg-[#0D0F12]"
-            >
+            <span key={tag} className="text-xs font-mono text-[#5A6478] border border-[#1E2329] px-2.5 py-1 rounded bg-[#0D0F12]">
               {tag}
             </span>
           ))}
         </div>
       </section>
 
-      {/* Navigation */}
       <div className="flex gap-3">
-        <button
-          onClick={onBack}
-          className="px-5 py-3.5 border border-[#1E2329] text-[#5A6478] font-mono text-sm rounded hover:border-[#2A3140] hover:text-[#EEF2F7] transition-colors uppercase tracking-wide"
-        >
-          ← Back
-        </button>
+        <BackButton onClick={onBack} />
         <button
           onClick={() => onCaptionConfirmed({ ...renderResult, selectedCaptionId })}
           className="flex-1 py-3.5 bg-[#E8FF47] text-[#07080A] font-bold font-mono text-sm rounded hover:bg-[#F2FF70] active:scale-[0.99] transition-all uppercase tracking-[0.08em]"
         >
-          Design Reel →
+          Brand Your Reel →
         </button>
       </div>
     </div>
   );
 }
 
-// ── Render Stage (Step 3 wrapper with DesignEditor + final render) ────────────
+// ── Brand Stage — Step 3 (NEW) ────────────────────────────────────────────────
 
-interface RenderStageProps {
+function BrandStage({
+  renderResult,
+  design,
+  onConfirmed,
+  onBack,
+}: {
   renderResult: RenderResult;
-  onRenderComplete: (jobId: string) => void;
+  design: DesignConfig;
+  onConfirmed: (design: DesignConfig) => void;
   onBack: () => void;
-  onDesignChange: (design: DesignConfig) => void;
+}) {
+  const [localDesign, setLocalDesign] = useState<DesignConfig>(design);
+
+  return (
+    <div className="flex flex-col gap-6 w-full max-w-5xl">
+      <div>
+        <StepLabel step={3} total={4} color="#39FF14" />
+        <h2 className="text-2xl font-extrabold text-[#EEF2F7] leading-none" style={{ letterSpacing: '-0.03em' }}>
+          Brand Your Reel
+        </h2>
+        <p className="text-[#5A6478] text-sm mt-2">
+          Add your handle, logo, choose a colour theme and set font sizes.
+        </p>
+      </div>
+
+      <DesignStudio
+        value={localDesign}
+        onChange={setLocalDesign}
+        hookText={renderResult.selectedHookText}
+      />
+
+      <div className="flex gap-3 max-w-sm">
+        <BackButton onClick={onBack} />
+        <button
+          onClick={() => onConfirmed(localDesign)}
+          className="flex-1 py-3 bg-[#E8FF47] text-[#07080A] font-bold font-mono text-sm rounded hover:bg-[#F2FF70] transition-colors uppercase tracking-wide"
+        >
+          Style the Design →
+        </button>
+      </div>
+    </div>
+  );
 }
 
-function RenderStage({ renderResult, onRenderComplete, onBack, onDesignChange }: RenderStageProps) {
-  const [isRendering,  setIsRendering]  = useState(false);
-  const [renderError,  setRenderError]  = useState<string | null>(null);
+// ── Render Stage — Step 4 (was Step 3) ────────────────────────────────────────
 
-  const handleConfirm = async (design: DesignConfig) => {
-    onDesignChange(design);
+function RenderStage({
+  renderResult,
+  design,
+  onDesignChange,
+  onRenderComplete,
+  onBack,
+}: {
+  renderResult: RenderResult;
+  design: DesignConfig;
+  onDesignChange: (d: DesignConfig) => void;
+  onRenderComplete: (jobId: string) => void;
+  onBack: () => void;
+}) {
+  const [isRendering, setIsRendering] = useState(false);
+  const [renderError, setRenderError] = useState<string | null>(null);
+
+  const handleConfirm = async (finalDesign: DesignConfig) => {
+    onDesignChange(finalDesign);
     setIsRendering(true);
     setRenderError(null);
     try {
@@ -267,7 +297,7 @@ function RenderStage({ renderResult, onRenderComplete, onBack, onDesignChange }:
           selectedHookText:  renderResult.selectedHookText,
           selectedHookId:    'confirmed',
           selectedCaptionId: renderResult.selectedCaptionId,
-          design,
+          design:            finalDesign,
         }),
       });
       const data = await res.json();
@@ -286,20 +316,18 @@ function RenderStage({ renderResult, onRenderComplete, onBack, onDesignChange }:
           <SpinnerIcon />
           <span className="text-[#E8FF47] font-mono text-sm uppercase tracking-widest">Rendering reel…</span>
         </div>
-        <p className="text-[#5A6478] text-sm">Applying your design and compositing the video. This takes a moment.</p>
+        <p className="text-[#5A6478] text-sm">
+          Dispatched to Azure render server. Your video will be ready shortly.
+        </p>
       </div>
     );
   }
 
   return (
     <>
-      {renderError && (
-        <p className="text-xs text-red-400 font-mono border border-red-900/40 bg-red-950/20 px-3 py-2 rounded mb-4 max-w-2xl">
-          {renderError}
-        </p>
-      )}
+      {renderError && <ErrorBox message={renderError} />}
       <DesignEditor
-        renderResult={renderResult}
+        renderResult={{ ...renderResult, design }}
         onConfirm={handleConfirm}
         onBack={onBack}
       />
@@ -309,15 +337,7 @@ function RenderStage({ renderResult, onRenderComplete, onBack, onDesignChange }:
 
 // ── Hook Card ─────────────────────────────────────────────────────────────────
 
-function HookCard({
-  hook,
-  selected,
-  onSelect,
-}: {
-  hook: HookOption;
-  selected: boolean;
-  onSelect: () => void;
-}) {
+function HookCard({ hook, selected, onSelect }: { hook: HookOption; selected: boolean; onSelect: () => void }) {
   return (
     <button
       type="button"
@@ -338,22 +358,11 @@ function HookCard({
             </svg>
           )}
         </div>
-
         <div className="flex flex-col gap-2 flex-1 min-w-0">
-          <span
-            style={{ fontFamily: 'var(--font-mono)' }}
-            className="text-base text-[#EEF2F7] font-medium leading-tight"
-          >
-            {hook.text}
-          </span>
-
+          <span className="text-base text-[#EEF2F7] font-medium leading-tight font-mono">{hook.text}</span>
           <div className="flex flex-wrap gap-1.5">
-            <Badge variant={hook.score >= 7 ? 'green' : hook.score >= 5 ? 'amber' : 'red'}>
-              Score {hook.score}/10
-            </Badge>
-            <Badge variant={hook.spellingOk ? 'green' : 'amber'}>
-              {hook.spellingOk ? '✓ Spelling' : '⚠ Corrected'}
-            </Badge>
+            <Badge variant={hook.score >= 7 ? 'green' : hook.score >= 5 ? 'amber' : 'red'}>Score {hook.score}/10</Badge>
+            <Badge variant={hook.spellingOk ? 'green' : 'amber'}>{hook.spellingOk ? '✓ Spelling' : '⚠ Corrected'}</Badge>
             <Badge variant="neutral">{hook.wordCount}w</Badge>
             {hook.isRecommended && <Badge variant="yellow">Recommended</Badge>}
           </div>
@@ -366,11 +375,7 @@ function HookCard({
 // ── Caption Card ──────────────────────────────────────────────────────────────
 
 function CaptionCard({
-  caption,
-  selected,
-  expanded,
-  onSelect,
-  onToggleExpand,
+  caption, selected, expanded, onSelect, onToggleExpand,
 }: {
   caption: CaptionOption;
   selected: boolean;
@@ -379,18 +384,10 @@ function CaptionCard({
   onToggleExpand: () => void;
 }) {
   return (
-    <div
-      className={`rounded border transition-all duration-150 ${
-        selected
-          ? 'border-[#3B82F6] bg-[#3B82F608] shadow-[0_0_0_1px_#3B82F620]'
-          : 'border-[#1E2329] bg-[#0D0F12]'
-      }`}
-    >
-      <button
-        type="button"
-        onClick={onSelect}
-        className="w-full text-left p-4"
-      >
+    <div className={`rounded border transition-all duration-150 ${
+      selected ? 'border-[#3B82F6] bg-[#3B82F608] shadow-[0_0_0_1px_#3B82F620]' : 'border-[#1E2329] bg-[#0D0F12]'
+    }`}>
+      <button type="button" onClick={onSelect} className="w-full text-left p-4">
         <div className="flex items-start gap-3">
           <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
             selected ? 'border-[#3B82F6] bg-[#3B82F6]' : 'border-[#2A3140]'
@@ -401,30 +398,18 @@ function CaptionCard({
               </svg>
             )}
           </div>
-
           <div className="flex flex-col gap-2 flex-1 min-w-0">
             <p className={`text-sm text-[#9AA3B0] leading-relaxed whitespace-pre-line ${!expanded ? 'line-clamp-3' : ''}`}>
               {caption.text}
             </p>
-
             <div className="flex flex-wrap gap-1.5">
-              {caption.format && (
-                <Badge variant="neutral">Format {caption.format}</Badge>
-              )}
-              <Badge variant={caption.score >= 7 ? 'green' : caption.score >= 5 ? 'amber' : 'red'}>
-                Score {caption.score}/10
-              </Badge>
+              {caption.format && <Badge variant="neutral">Format {caption.format}</Badge>}
+              <Badge variant={caption.score >= 7 ? 'green' : caption.score >= 5 ? 'amber' : 'red'}>Score {caption.score}/10</Badge>
               {caption.skillScore > 0 && (
-                <Badge variant={caption.skillScore >= 7 ? 'green' : 'amber'}>
-                  Skill {caption.skillScore}/10
-                </Badge>
+                <Badge variant={caption.skillScore >= 7 ? 'green' : 'amber'}>Skill {caption.skillScore}/10</Badge>
               )}
-              <Badge variant={caption.hasCTA ? 'green' : 'amber'}>
-                {caption.hasCTA ? '✓ CTA' : 'No CTA'}
-              </Badge>
-              <Badge variant={caption.firstLineStrong ? 'green' : 'amber'}>
-                {caption.firstLineStrong ? '✓ First line' : '△ First line'}
-              </Badge>
+              <Badge variant={caption.hasCTA ? 'green' : 'amber'}>{caption.hasCTA ? '✓ CTA' : 'No CTA'}</Badge>
+              <Badge variant={caption.firstLineStrong ? 'green' : 'amber'}>{caption.firstLineStrong ? '✓ First line' : '△ First line'}</Badge>
               {!caption.noMarkdown && <Badge variant="red">⚠ Markdown</Badge>}
               {!caption.noForbiddenPhrases && <Badge variant="red">⚠ Phrases</Badge>}
               {caption.isRecommended && <Badge variant="blue">Recommended</Badge>}
@@ -432,7 +417,6 @@ function CaptionCard({
           </div>
         </div>
       </button>
-
       <button
         type="button"
         onClick={onToggleExpand}
@@ -445,6 +429,45 @@ function CaptionCard({
 }
 
 // ── Shared primitives ─────────────────────────────────────────────────────────
+
+function StepLabel({ step, total, color }: { step: number; total: number; color: string }) {
+  return (
+    <div className="flex items-center gap-2 mb-1">
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
+      <span className="text-[10px] font-mono uppercase tracking-widest" style={{ color }}>
+        Step {step} of {total}
+      </span>
+    </div>
+  );
+}
+
+function BackButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="px-5 py-3 border border-[#1E2329] text-[#5A6478] font-mono text-sm rounded hover:border-[#2A3140] hover:text-[#EEF2F7] transition-colors uppercase tracking-wide"
+    >
+      ← Back
+    </button>
+  );
+}
+
+function ErrorBox({ message }: { message: string }) {
+  return (
+    <p className="text-xs text-red-400 font-mono border border-red-900/40 bg-red-950/20 px-3 py-2 rounded">
+      {message}
+    </p>
+  );
+}
+
+function LoadingLabel({ label }: { label: string }) {
+  return (
+    <span className="flex items-center justify-center gap-2">
+      <SpinnerIcon />
+      {label}
+    </span>
+  );
+}
 
 type BadgeVariant = 'green' | 'amber' | 'red' | 'blue' | 'yellow' | 'neutral';
 
@@ -466,11 +489,7 @@ function Badge({ variant, children }: { variant: BadgeVariant; children: React.R
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="text-[10px] font-mono text-[#5A6478] uppercase tracking-[0.12em]">
-      {children}
-    </span>
-  );
+  return <span className="text-[10px] font-mono text-[#5A6478] uppercase tracking-[0.12em]">{children}</span>;
 }
 
 function SpinnerIcon() {
