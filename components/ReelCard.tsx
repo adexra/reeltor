@@ -36,7 +36,7 @@ export function ReelCard({ job }: Props) {
       {/* Video */}
       <div className="relative bg-black aspect-[9/16] w-full overflow-hidden">
         <video
-          src={`/api/library/${jobId}/download`}
+          src={job.outputPath ?? `/api/library/${jobId}/download`}
           className="w-full h-full object-cover"
           controls
           muted

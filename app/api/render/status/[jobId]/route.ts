@@ -15,9 +15,10 @@ export async function GET(
   }
 
   return NextResponse.json({
-    status:       job.status,
-    progress:     job.progress ?? 0,
-    outputUrl:    job.output_video_path ?? null,
-    errorMessage: job.error_message ?? null,
+    status:        job.status,
+    progress:      job.progress ?? 0,
+    outputUrl:     job.output_video_path ?? null,
+    errorMessage:  job.error_message ?? null,
+    lastHeartbeat: (job as unknown as { last_heartbeat?: string }).last_heartbeat ?? null,
   });
 }

@@ -1,9 +1,78 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import type { GenerationResult, HookOption, CaptionOption, RenderResult, DesignConfig } from '../schema';
 import { DesignEditor, DEFAULT_DESIGN } from './DesignEditor';
 import { DesignStudio, DESIGN_STUDIO_DEFAULTS } from './DesignStudio';
+
+// ── Browser Supabase client (anon key) ────────────────────────────────────────
+const supabaseClient = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+);
+
+// ── Design localStorage persistence ──────────────────────────────────────────
+
+const DESIGN_STORAGE_KEY = 'reelator_design_prefs';
+
+interface DesignPrefs {
+  handle?:      string;
+  logoUrl?:     string;
+  palette?:     string;
+  baseFontSize?: number;
+}
+
+function loadDesignPrefs(): DesignPrefs {
+  try {
+    const raw = localStorage.getItem(DESIGN_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as DesignPrefs) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveDesignPrefs(prefs: DesignPrefs): void {
+  try {
+    localStorage.setItem(DESIGN_STORAGE_KEY, JSON.stringify(prefs));
+  } catch {}
+}
+
+async function upsertUserPreferences(prefs: DesignPrefs): Promise<void> {
+  // We use a singleton row keyed by a fixed well-known ID stored in localStorage.
+  // This avoids needing auth for a simple preference store.
+  let prefId: string | null = null;
+  try {
+    prefId = localStorage.getItem('reelator_pref_id');
+  } catch {}
+
+  if (prefId) {
+    await supabaseClient
+      .from('user_preferences')
+      .update({
+        handle:           prefs.handle ?? null,
+        logo_url:         prefs.logoUrl ?? null,
+        favorite_palette: prefs.palette ?? null,
+        base_font_size:   prefs.baseFontSize ?? null,
+      })
+      .eq('id', prefId);
+  } else {
+    const { data } = await supabaseClient
+      .from('user_preferences')
+      .insert({
+        handle:           prefs.handle ?? null,
+        logo_url:         prefs.logoUrl ?? null,
+        favorite_palette: prefs.palette ?? null,
+        base_font_size:   prefs.baseFontSize ?? null,
+      })
+      .select('id')
+      .single();
+
+    if (data?.id) {
+      try { localStorage.setItem('reelator_pref_id', data.id as string); } catch {}
+    }
+  }
+}
 
 // ── Stages ────────────────────────────────────────────────────────────────────
 
@@ -15,9 +84,18 @@ export function SelectionPanel({ result, onRenderComplete }: {
 }) {
   const [stage,        setStage]        = useState<Stage>('hook');
   const [renderResult, setRenderResult] = useState<RenderResult | null>(null);
-  const [design,       setDesign]       = useState<DesignConfig>({
-    ...DEFAULT_DESIGN,
-    ...DESIGN_STUDIO_DEFAULTS,
+  const [design,       setDesign]       = useState<DesignConfig>(() => {
+    // Hydrate from localStorage on first render (client-only via lazy initializer)
+    const base: DesignConfig = { ...DEFAULT_DESIGN, ...DESIGN_STUDIO_DEFAULTS };
+    if (typeof window === 'undefined') return base;
+    const prefs = loadDesignPrefs();
+    return {
+      ...base,
+      ...(prefs.handle      !== undefined && { handle:      prefs.handle }),
+      ...(prefs.logoUrl     !== undefined && { logoUrl:     prefs.logoUrl }),
+      ...(prefs.palette     !== undefined && { palette:     prefs.palette as DesignConfig['palette'] }),
+      ...(prefs.baseFontSize !== undefined && { baseFontSize: prefs.baseFontSize }),
+    };
   });
 
   function handleHookConfirmed(_hookId: string, _hookText: string, rr: RenderResult) {
@@ -32,6 +110,14 @@ export function SelectionPanel({ result, onRenderComplete }: {
 
   function handleBrandConfirmed(updatedDesign: DesignConfig) {
     setDesign(updatedDesign);
+    // Persist brand prefs to localStorage
+    const prefs: DesignPrefs = {
+      handle:       updatedDesign.handle,
+      logoUrl:      updatedDesign.logoUrl,
+      palette:      updatedDesign.palette,
+      baseFontSize: updatedDesign.baseFontSize,
+    };
+    saveDesignPrefs(prefs);
     setStage('design');
   }
 
@@ -283,26 +369,49 @@ function RenderStage({
   const [isRendering, setIsRendering] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [statusMsg,   setStatusMsg]   = useState('Dispatching to Azure render server…');
+  const [isTimeout,   setIsTimeout]   = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const HEARTBEAT_TIMEOUT_MS = 120_000; // 120 seconds
 
   // Poll /api/render/status/:jobId every 5s until done or error
   const startPolling = (jobId: string) => {
     pollRef.current = setInterval(async () => {
       try {
         const r = await fetch(`/api/render/status/${jobId}`);
-        const d = await r.json() as { status: string; progress: number; errorMessage?: string };
+        const d = await r.json() as {
+          status: string;
+          progress: number;
+          errorMessage?: string;
+          lastHeartbeat?: string | null;
+        };
 
         if (d.status === 'done') {
           clearInterval(pollRef.current!);
           onRenderComplete(jobId);
-        } else if (d.status === 'error') {
+          return;
+        }
+
+        if (d.status === 'error' || d.status === 'failed') {
           clearInterval(pollRef.current!);
           setRenderError(d.errorMessage ?? 'Render failed on Azure.');
           setIsRendering(false);
-        } else {
-          const pct = d.progress ?? 0;
-          setStatusMsg(`Rendering on Azure… ${pct}%`);
+          return;
         }
+
+        // Dead Man's Switch — if heartbeat is stale, Azure likely timed out
+        if (d.lastHeartbeat) {
+          const age = Date.now() - new Date(d.lastHeartbeat).getTime();
+          if (age > HEARTBEAT_TIMEOUT_MS) {
+            clearInterval(pollRef.current!);
+            setIsTimeout(true);
+            setIsRendering(false);
+            return;
+          }
+        }
+
+        const pct = d.progress ?? 0;
+        setStatusMsg(`Rendering on Azure… ${pct}%`);
       } catch {
         // Network blip — keep polling
       }
@@ -316,7 +425,19 @@ function RenderStage({
     onDesignChange(finalDesign);
     setIsRendering(true);
     setRenderError(null);
+    setIsTimeout(false);
     setStatusMsg('Dispatching to Azure render server…');
+
+    // Upsert brand prefs to Supabase in parallel (fire-and-forget)
+    const prefs: DesignPrefs = {
+      handle:       finalDesign.handle,
+      logoUrl:      finalDesign.logoUrl,
+      palette:      finalDesign.palette,
+      baseFontSize: finalDesign.baseFontSize,
+    };
+    saveDesignPrefs(prefs);
+    upsertUserPreferences(prefs).catch(() => {}); // non-fatal
+
     try {
       const res = await fetch('/api/render', {
         method:  'POST',
@@ -340,6 +461,30 @@ function RenderStage({
       setIsRendering(false);
     }
   };
+
+  if (isTimeout) {
+    return (
+      <div className="flex flex-col items-start gap-6 max-w-md">
+        <div className="flex items-center gap-3">
+          <span className="w-2 h-2 rounded-full bg-amber-400" />
+          <span className="text-amber-400 font-mono text-sm uppercase tracking-widest">Azure Timeout</span>
+        </div>
+        <p className="text-[#5A6478] text-sm">
+          The render server hasn&apos;t reported progress in over 2 minutes. The container may have
+          cold-started or been recycled. Your job is still queued — check back in a moment or retry.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => { setIsTimeout(false); setIsRendering(true); startPolling(renderResult.jobId); }}
+            className="px-5 py-2.5 bg-[#E8FF47] text-[#07080A] font-mono text-sm font-bold rounded hover:bg-[#F2FF70] transition-colors uppercase tracking-wide"
+          >
+            Resume Polling
+          </button>
+          <BackButton onClick={onBack} />
+        </div>
+      </div>
+    );
+  }
 
   if (isRendering) {
     return (

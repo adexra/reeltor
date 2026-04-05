@@ -141,9 +141,13 @@ function MockPhone({
 }) {
   const displayHook = (hookText.trim() || 'YOUR HOOK HERE').toUpperCase();
 
-  // Auto-scale: if hook is < 3 words and user picked 2.5, bump to 3.0
-  const wordCount   = displayHook.split(' ').filter(Boolean).length;
-  const effectiveFS = hookFontSize === 2.5 && wordCount < 3 ? 3.0 : hookFontSize;
+  // Short hook (<10 words): scale 2.5→3.2 proportionally, matching canvas logic
+  const wordCount = displayHook.split(' ').filter(Boolean).length;
+  const autoFS    = wordCount < 10
+    ? Math.max(2.5, Math.min(3.2, 3.2 - (wordCount - 1) * 0.08))
+    : 2.5;
+  // If user manually set a size other than default 2.5, respect it; otherwise auto-scale
+  const effectiveFS = hookFontSize === 2.5 ? autoFS : hookFontSize;
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -492,9 +496,9 @@ export function DesignStudio({ value, onChange, hookText }: Props) {
               accentHex={accentHex}
             />
           </div>
-          {hookFontSize === 2.5 && hookText.trim().split(' ').filter(Boolean).length < 3 && (
+          {hookFontSize === 2.5 && hookText.trim().split(' ').filter(Boolean).length < 10 && (
             <p className="text-[10px] font-mono text-[#E8FF47] mt-1">
-              ✦ Short hook detected — auto-scaling to 3.0× for maximum impact.
+              ✦ Short hook — auto-scaling to {Math.max(2.5, Math.min(3.2, 3.2 - (hookText.trim().split(' ').filter(Boolean).length - 1) * 0.08)).toFixed(1)}× for maximum impact.
             </p>
           )}
         </Section>

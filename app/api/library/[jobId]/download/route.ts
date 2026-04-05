@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getJobVideoPath } from '../../../../../skills/library_manager';
-import fs from 'fs';
+import { getJob, getOutputPublicUrl } from '../../../../../lib/supabase';
 
 export const runtime = 'nodejs';
 
@@ -9,20 +8,12 @@ export async function GET(
   { params }: { params: Promise<{ jobId: string }> }
 ) {
   const { jobId } = await params;
-  const videoPath = await getJobVideoPath(jobId);
+  const job = await getJob(jobId);
 
-  if (!videoPath) {
+  if (!job || !job.output_video_path) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  const fileBuffer = fs.readFileSync(videoPath);
-
-  return new NextResponse(fileBuffer, {
-    status: 200,
-    headers: {
-      'Content-Type': 'video/mp4',
-      'Content-Disposition': `attachment; filename="reel-${jobId}.mp4"`,
-      'Content-Length': String(fileBuffer.length),
-    },
-  });
+  const publicUrl = getOutputPublicUrl(job.output_video_path);
+  return NextResponse.redirect(publicUrl, { status: 302 });
 }

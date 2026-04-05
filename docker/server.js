@@ -179,6 +179,7 @@ async function runRender(jobId) {
     await setJobStatus(jobId, 'processing', { current_step: 'rendering', progress: 35 });
 
     // ── 6. Render ────────────────────────────────────────────────────────────
+    let lastReportedPct = 34; // already reported up to 35% above
     await renderMedia({
       composition,
       serveUrl:    bundleUrl,
@@ -187,10 +188,26 @@ async function runRender(jobId) {
       inputProps,
       imageFormat: 'jpeg',
       jpegQuality: 90,
-      // Log progress every ~10%
       onProgress: ({ progress }) => {
         const pct = Math.round(progress * 100);
-        if (pct % 10 === 0) console.log(`[render] ${jobId} → ${pct}%`);
+        // Update Supabase every 5% increment
+        if (pct >= lastReportedPct + 5) {
+          lastReportedPct = pct;
+          console.log(`[render] ${jobId} → ${pct}%`);
+          // Map Remotion 0–100 into our 35–85 progress band
+          const dbPct = Math.round(35 + progress * 50);
+          supabase
+            .from('reel_jobs')
+            .update({
+              progress:       dbPct,
+              last_heartbeat: new Date().toISOString(),
+              current_step:   'rendering',
+            })
+            .eq('id', jobId)
+            .then(({ error }) => {
+              if (error) console.error(`[render] heartbeat update error: ${error.message}`);
+            });
+        }
       },
     });
 
@@ -270,9 +287,10 @@ app.post('/render', requireSecret, async (req, res) => {
   runRender(jobId).catch(async (err) => {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[render] FATAL for job ${jobId}:`, message);
-    await setJobStatus(jobId, 'error', {
+    await setJobStatus(jobId, 'failed', {
       current_step:  'error',
       error_message: message,
+      last_heartbeat: new Date().toISOString(),
     }).catch(() => {});
   });
 });
@@ -294,9 +312,10 @@ app.post('/render/sync', requireSecret, async (req, res) => {
     res.json({ jobId, ...result });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await setJobStatus(jobId, 'error', {
+    await setJobStatus(jobId, 'failed', {
       current_step:  'error',
       error_message: message,
+      last_heartbeat: new Date().toISOString(),
     }).catch(() => {});
     res.status(500).json({ error: message });
   }
