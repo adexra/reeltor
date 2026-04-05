@@ -31,6 +31,12 @@ export type LightStreakStyle =
   | 'diagonal'      // Diagonal streak from corner
   | 'burst';        // Center burst / halo
 
+export interface PaletteColors {
+  primary:   string;   // hex — dominant text / accent colour
+  secondary: string;   // hex — supporting colour (e.g. handle text)
+  accent:    string;   // hex — glow / highlight
+}
+
 export interface DesignConfig {
   palette:      ColorPalette;
   font:         HookFont;
@@ -38,6 +44,14 @@ export interface DesignConfig {
   lightStreak:  LightStreakStyle;
   textPosition: 'top' | 'center' | 'bottom'; // Vertical zone for hook text
   showCTA:      boolean;
+
+  // ── Design Studio extensions (all optional for backwards compat) ──────────
+  handle?:       string;        // e.g. "@username" — shown bottom-left
+  handleSize?:   number;        // rem multiplier: 0.8 | 1.0 (default 1.0)
+  logoUrl?:      string;        // Supabase Storage public URL, shown as circle
+  hookFontSize?: number;        // rem multiplier for hook text (default 2.5)
+  baseFontSize?: number;        // rem multiplier for body/CTA text (default 1.0)
+  paletteColors?: PaletteColors; // overrides the built-in ColorPalette hex values
 }
 export type JobStatus = 'pending' | 'processing' | 'done' | 'error';
 export type PipelineStep = 'upload' | 'ai' | 'ffmpeg' | 'done' | 'error';

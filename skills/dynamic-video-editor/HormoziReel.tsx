@@ -37,6 +37,7 @@ import React, { useMemo } from 'react';
 import {
   AbsoluteFill,
   OffthreadVideo,
+  Img,
   useCurrentFrame,
   useVideoConfig,
   spring,
@@ -58,12 +59,23 @@ export const hormoziReelSchema = z.object({
     z.object({ word: z.string(), start: z.number(), end: z.number() }),
   ),
   design: z.object({
-    palette:      z.string(),
-    font:         z.string(),
-    animation:    z.string(),
-    lightStreak:  z.string(),
-    textPosition: z.string(),
-    showCTA:      z.boolean(),
+    palette:       z.string(),
+    font:          z.string(),
+    animation:     z.string(),
+    lightStreak:   z.string(),
+    textPosition:  z.string(),
+    showCTA:       z.boolean(),
+    // Design Studio extensions
+    handle:        z.string().optional(),
+    handleSize:    z.number().optional(),
+    logoUrl:       z.string().optional(),
+    hookFontSize:  z.number().optional(),
+    baseFontSize:  z.number().optional(),
+    paletteColors: z.object({
+      primary:   z.string(),
+      secondary: z.string(),
+      accent:    z.string(),
+    }).optional(),
   }),
   startTime:      z.number(),
   durationMode:   z.enum(['short', 'standard']),
@@ -111,6 +123,7 @@ interface WordProps {
   accentColor: string;
   glowColor:   string;
   fontFamily:  string;
+  hookFontPx:  number;
   frameOffset: number;  // frame relative to the start of this word's Sequence
   fps:         number;
 }
@@ -122,6 +135,7 @@ function AnimatedWord({
   accentColor,
   glowColor,
   fontFamily,
+  hookFontPx,
   frameOffset,
   fps,
 }: WordProps) {
@@ -156,7 +170,7 @@ function AnimatedWord({
         opacity,
         color,
         fontFamily,
-        fontSize:             148,
+        fontSize:             hookFontPx,
         fontWeight:           900,
         lineHeight:           1.0,
         letterSpacing:        '0.02em',
@@ -181,15 +195,18 @@ interface StaticHookProps {
   accentColor: string;
   glowColor:   string;
   fontFamily:  string;
-  positionY:   number;  // 0–1 fraction of frame height
+  positionY:   number;
   showCTA:     boolean;
+  hookFontPx:  number;
+  baseFontPx:  number;
   frame:       number;
   fps:         number;
   animStyle:   string;
 }
 
 function StaticHook({
-  text, accentColor, glowColor, fontFamily, positionY, showCTA, frame, fps, animStyle,
+  text, accentColor, glowColor, fontFamily, positionY, showCTA,
+  hookFontPx, baseFontPx, frame, fps, animStyle,
 }: StaticHookProps) {
   // Entry animation — driven by design.animation
   let opacity = 1;
@@ -230,7 +247,7 @@ function StaticHook({
           key={i}
           style={{
             fontFamily,
-            fontSize:         148,
+            fontSize:         hookFontPx,
             fontWeight:       900,
             lineHeight:       1.0,
             letterSpacing:    '0.02em',
@@ -264,7 +281,7 @@ function StaticHook({
           style={{
             marginTop:        10,
             fontFamily:       '"DM Sans", sans-serif',
-            fontSize:         38,
+            fontSize:         Math.round(baseFontPx * 0.95),
             fontWeight:       500,
             color:            'rgba(255,255,255,0.75)',
             textShadow:       '1px 2px 0 rgba(0,0,0,0.7)',
@@ -317,10 +334,38 @@ export function HormoziReel({
   const { fps, durationInFrames } = useVideoConfig();
 
   // ── Design resolution ──────────────────────────────────────────────────────
-  const palette     = (design.palette as ColorPalette) ?? 'neon-yellow';
-  const font        = (design.font    as HookFont)     ?? 'bebas';
-  const { primary: accentColor, glow: glowColor } = PALETTE_HEX[palette] ?? PALETTE_HEX['neon-yellow'];
-  const fontFamily  = FONT_FAMILY[font] ?? FONT_FAMILY.bebas;
+  const palette    = (design.palette as ColorPalette) ?? 'neon-yellow';
+  const font       = (design.font    as HookFont)     ?? 'bebas';
+  const fontFamily = FONT_FAMILY[font] ?? FONT_FAMILY.bebas;
+
+  // paletteColors from DesignStudio overrides the built-in lookup.
+  // Falls back to the string-keyed PALETTE_HEX table for older jobs.
+  const accentColor = design.paletteColors?.primary
+    ?? PALETTE_HEX[palette]?.primary
+    ?? PALETTE_HEX['neon-yellow'].primary;
+  const glowColor   = design.paletteColors?.accent
+    ?? PALETTE_HEX[palette]?.glow
+    ?? PALETTE_HEX['neon-yellow'].glow;
+  const secondaryColor = design.paletteColors?.secondary ?? '#FFFFFF';
+
+  // Handle + logo
+  const handle     = design.handle    ?? '';
+  const handleSize = design.handleSize ?? 1.0;
+  const logoUrl    = design.logoUrl   ?? '';
+
+  // Font sizes — rem values converted to px at 1080px canvas width.
+  // Base rem = 1080 / 27 ≈ 40px (matches typical mobile viewport scaling).
+  const BASE_REM    = 40;
+  const baseFontSize = design.baseFontSize ?? 1.0;
+
+  // Hook font size with auto-scale rule:
+  // If user picks 2.5× but the hook is < 3 words, bump to 3.0× for impact.
+  const rawHookFontSize = design.hookFontSize ?? 2.5;
+  const hookWordCount   = hookText.trim().split(/\s+/).filter(Boolean).length;
+  const hookFontSizeRem = rawHookFontSize === 2.5 && hookWordCount < 3
+    ? 3.0
+    : rawHookFontSize;
+  const hookFontPx = Math.round(hookFontSizeRem * BASE_REM);
 
   const positionFraction: Record<string, number> = {
     top:    0.22,
@@ -359,20 +404,12 @@ export function HormoziReel({
     <AbsoluteFill style={{ backgroundColor: '#000' }}>
 
       {/* ── Source video ──────────────────────────────────────────────────── */}
-      {/* OffthreadVideo renders each frame via FFmpeg in the render pipeline,   */}
-      {/* which is required for server-side rendering. src must be a file:// URL */}
-      {/* or an https:// URL — never a staticFile() path when running in the     */}
-      {/* container, since there is no dev-server asset host.                    */}
       <AbsoluteFill>
         <OffthreadVideo
           src={rawVideoPath.startsWith('file://') ? rawVideoPath : `file://${rawVideoPath}`}
           startFrom={Math.round(startTime * fps)}
           endAt={Math.round(startTime * fps) + clipFrames}
-          style={{
-            width:      '100%',
-            height:     '100%',
-            objectFit:  'cover',
-          }}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
         />
       </AbsoluteFill>
 
@@ -381,23 +418,15 @@ export function HormoziReel({
 
       {/* ── Caption layer ─────────────────────────────────────────────────── */}
       {hasTranscript ? (
-        /*
-         * Whisper transcript mode
-         * ────────────────────────
-         * Each word gets its own <Sequence> so Remotion's frame-accurate
-         * rendering ticks exactly with the timestamp. We render ALL words
-         * but control visibility via opacity so the spring has a reference
-         * frame (frameOffset = 0 = the moment the word becomes active).
-         */
         <AbsoluteFill
           style={{
-            display:         'flex',
-            alignItems:      positionY < 0.4 ? 'flex-start' : positionY > 0.6 ? 'flex-end' : 'center',
-            justifyContent:  'center',
-            paddingTop:      positionY < 0.4 ? `${positionY * 100}%` : 0,
-            paddingBottom:   positionY > 0.6 ? `${(1 - positionY) * 100}%` : 0,
-            paddingInline:   80,
-            pointerEvents:   'none',
+            display:        'flex',
+            alignItems:     positionY < 0.4 ? 'flex-start' : positionY > 0.6 ? 'flex-end' : 'center',
+            justifyContent: 'center',
+            paddingTop:     positionY < 0.4 ? `${positionY * 100}%` : 0,
+            paddingBottom:  positionY > 0.6 ? `${(1 - positionY) * 100}%` : 0,
+            paddingInline:  80,
+            pointerEvents:  'none',
           }}
         >
           {wordSequences.map(({ word, startFrame, durationFrames, index }) => (
@@ -407,7 +436,6 @@ export function HormoziReel({
               durationInFrames={durationFrames}
               layout="none"
             >
-              {/* Sequence resets currentFrame to 0 at `from` — perfect for spring */}
               <AnimatedWordSequenceItem
                 word={word}
                 isActive={index === activeWordIndex}
@@ -415,17 +443,13 @@ export function HormoziReel({
                 accentColor={accentColor}
                 glowColor={glowColor}
                 fontFamily={fontFamily}
+                hookFontPx={hookFontPx}
                 fps={fps}
               />
             </Sequence>
           ))}
         </AbsoluteFill>
       ) : (
-        /*
-         * Static hook mode (no Whisper data)
-         * ─────────────────────────────────────
-         * Matches existing canvas/FFmpeg overlay behaviour as a fallback.
-         */
         <StaticHook
           text={hookText}
           accentColor={accentColor}
@@ -433,10 +457,58 @@ export function HormoziReel({
           fontFamily={fontFamily}
           positionY={positionY}
           showCTA={design.showCTA}
+          hookFontPx={hookFontPx}
+          baseFontPx={Math.round(baseFontSize * BASE_REM)}
           frame={frame}
           fps={fps}
           animStyle={design.animation}
         />
+      )}
+
+      {/* ── Logo + Handle overlay (bottom-left) ───────────────────────────── */}
+      {(logoUrl || handle) && (
+        <div
+          style={{
+            position:   'absolute',
+            bottom:     60,
+            left:       48,
+            display:    'flex',
+            alignItems: 'center',
+            gap:        18,
+            pointerEvents: 'none',
+          }}
+        >
+          {logoUrl && (
+            <Img
+              src={logoUrl}
+              style={{
+                width:        Math.round(handleSize * 72),
+                height:       Math.round(handleSize * 72),
+                borderRadius: '50%',
+                objectFit:    'cover',
+                border:       `3px solid ${accentColor}`,
+                boxShadow:    `0 0 14px ${glowColor}`,
+                flexShrink:   0,
+              }}
+            />
+          )}
+          {handle && (
+            <span
+              style={{
+                fontFamily:       '"DM Sans", sans-serif',
+                fontSize:         Math.round(handleSize * baseFontSize * BASE_REM * 0.8),
+                fontWeight:       700,
+                color:            secondaryColor,
+                textShadow:       '0 2px 8px rgba(0,0,0,0.9)',
+                WebkitTextStroke: '1px rgba(0,0,0,0.6)',
+                paintOrder:       'stroke fill',
+                letterSpacing:    '0.03em',
+              }}
+            >
+              {handle.startsWith('@') ? handle : `@${handle}`}
+            </span>
+          )}
+        </div>
       )}
     </AbsoluteFill>
   );
@@ -453,24 +525,25 @@ interface SequenceItemProps {
   accentColor: string;
   glowColor:   string;
   fontFamily:  string;
+  hookFontPx:  number;
   fps:         number;
 }
 
 function AnimatedWordSequenceItem({
-  word, isActive, isPast, accentColor, glowColor, fontFamily, fps,
+  word, isActive, isPast, accentColor, glowColor, fontFamily, hookFontPx, fps,
 }: SequenceItemProps) {
-  const frameOffset = useCurrentFrame(); // 0 = first frame this word is active
+  const frameOffset = useCurrentFrame();
 
   return (
     <div
       style={{
-        position:        'absolute',
-        left:            0,
-        right:           0,
-        display:         'flex',
-        justifyContent:  'center',
-        alignItems:      'center',
-        pointerEvents:   'none',
+        position:       'absolute',
+        left:           0,
+        right:          0,
+        display:        'flex',
+        justifyContent: 'center',
+        alignItems:     'center',
+        pointerEvents:  'none',
       }}
     >
       <AnimatedWord
@@ -480,6 +553,7 @@ function AnimatedWordSequenceItem({
         accentColor={accentColor}
         glowColor={glowColor}
         fontFamily={fontFamily}
+        hookFontPx={hookFontPx}
         frameOffset={frameOffset}
         fps={fps}
       />
