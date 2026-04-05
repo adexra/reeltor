@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { GenerationResult, HookOption, CaptionOption, RenderResult, DesignConfig } from '../schema';
 import { DesignEditor, DEFAULT_DESIGN } from './DesignEditor';
 import { DesignStudio, DESIGN_STUDIO_DEFAULTS } from './DesignStudio';
@@ -282,11 +282,41 @@ function RenderStage({
 }) {
   const [isRendering, setIsRendering] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
+  const [statusMsg,   setStatusMsg]   = useState('Dispatching to Azure render server…');
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Poll /api/render/status/:jobId every 5s until done or error
+  const startPolling = (jobId: string) => {
+    pollRef.current = setInterval(async () => {
+      try {
+        const r = await fetch(`/api/render/status/${jobId}`);
+        const d = await r.json() as { status: string; progress: number; errorMessage?: string };
+
+        if (d.status === 'done') {
+          clearInterval(pollRef.current!);
+          onRenderComplete(jobId);
+        } else if (d.status === 'error') {
+          clearInterval(pollRef.current!);
+          setRenderError(d.errorMessage ?? 'Render failed on Azure.');
+          setIsRendering(false);
+        } else {
+          const pct = d.progress ?? 0;
+          setStatusMsg(`Rendering on Azure… ${pct}%`);
+        }
+      } catch {
+        // Network blip — keep polling
+      }
+    }, 5000);
+  };
+
+  // Clean up on unmount
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
   const handleConfirm = async (finalDesign: DesignConfig) => {
     onDesignChange(finalDesign);
     setIsRendering(true);
     setRenderError(null);
+    setStatusMsg('Dispatching to Azure render server…');
     try {
       const res = await fetch('/api/render', {
         method:  'POST',
@@ -302,7 +332,9 @@ function RenderStage({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `Render failed (${res.status})`);
-      onRenderComplete(renderResult.jobId);
+      // 202 accepted — start polling for completion
+      setStatusMsg('Render queued. Waiting for Azure…');
+      startPolling(renderResult.jobId);
     } catch (err) {
       setRenderError(err instanceof Error ? err.message : 'Render failed');
       setIsRendering(false);
@@ -316,9 +348,7 @@ function RenderStage({
           <SpinnerIcon />
           <span className="text-[#E8FF47] font-mono text-sm uppercase tracking-widest">Rendering reel…</span>
         </div>
-        <p className="text-[#5A6478] text-sm">
-          Dispatched to Azure render server. Your video will be ready shortly.
-        </p>
+        <p className="text-[#5A6478] text-sm">{statusMsg}</p>
       </div>
     );
   }
