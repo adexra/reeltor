@@ -2,6 +2,43 @@
 
 export type ClipDurationMode = 'short' | 'standard';
 export type ToneOption = 'Inspirational' | 'Assertive' | 'Playful' | 'Luxury' | 'Educational';
+
+// ── Design Config ─────────────────────────────────────────────────────────────
+
+export type ColorPalette =
+  | 'neon-yellow'   // #E8FF47 (default brand)
+  | 'electric-blue' // #3B82F6
+  | 'hot-pink'      // #FF2D78
+  | 'cyber-green'   // #39FF14
+  | 'pure-white'    // #FFFFFF
+  | 'fire-orange';  // #FF6B35
+
+export type HookFont =
+  | 'bebas'         // Bebas Neue — bold condensed (default)
+  | 'impact'        // Impact — heavy
+  | 'oswald'        // Oswald — modern condensed
+  | 'montserrat';   // Montserrat — clean bold
+
+export type AnimationStyle =
+  | 'none'          // Static overlay
+  | 'fade-in'       // Text fades in
+  | 'slide-up'      // Text slides up
+  | 'zoom-in';      // Text zooms in from small
+
+export type LightStreakStyle =
+  | 'none'
+  | 'horizontal'    // Fast horizontal lens flare sweep
+  | 'diagonal'      // Diagonal streak from corner
+  | 'burst';        // Center burst / halo
+
+export interface DesignConfig {
+  palette:      ColorPalette;
+  font:         HookFont;
+  animation:    AnimationStyle;
+  lightStreak:  LightStreakStyle;
+  textPosition: 'top' | 'center' | 'bottom'; // Vertical zone for hook text
+  showCTA:      boolean;
+}
 export type JobStatus = 'pending' | 'processing' | 'done' | 'error';
 export type PipelineStep = 'upload' | 'ai' | 'ffmpeg' | 'done' | 'error';
 
@@ -33,6 +70,7 @@ export interface FFmpegConfig {
   duration: number;
   hook: string;
   resolution: { width: 1080; height: 1920 };
+  design?: DesignConfig;
 }
 
 export interface ReelJob {
@@ -110,6 +148,7 @@ export interface RenderResult {
   hashtags: string[];
   selectedCaptionId: string;   // pre-selected (highest score)
   status: 'awaiting_caption' | 'rendering' | 'done' | 'error';
+  design?: DesignConfig;
 }
 
 // ── SSE step types ────────────────────────────────────────────────────────────

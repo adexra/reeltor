@@ -20,7 +20,7 @@ export async function processVideo(config: FFmpegConfig): Promise<void> {
 
   // Step 2: Render the overlay PNG using Node canvas
   const overlayPath = join(tmpdir(), `${id}_overlay.png`);
-  await renderOverlayPNG({ hookText: hook, jobId: id, outputPath: overlayPath });
+  await renderOverlayPNG({ hookText: hook, jobId: id, outputPath: overlayPath, design: config.design });
 
   // Step 3: Composite overlay PNG onto scaled video → final MP4
   await compositeOverlay(scaledPath, overlayPath, outputPath);

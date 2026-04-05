@@ -6,6 +6,11 @@ import type {
   BusinessContext,
 } from '../schema';
 
+// Whisper lives in its own module. Re-export so existing imports of
+// transcribeWithWhisper from ai_copywriter still resolve without breaking.
+export { generateWordTimestamps as transcribeWithWhisper } from './audio_transcriber';
+export type { TranscriptResult as WhisperTranscriptResult, WordTimestamp as WhisperWord } from './audio_transcriber';
+
 // ── Azure OpenAI helper ───────────────────────────────────────────────────────
 
 async function azureChat(systemPrompt: string, userPrompt: string): Promise<string> {

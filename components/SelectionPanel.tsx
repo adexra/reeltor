@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import type { GenerationResult, HookOption, CaptionOption, RenderResult } from '../schema';
+import type { GenerationResult, HookOption, CaptionOption, RenderResult, DesignConfig } from '../schema';
+import { DesignEditor } from './DesignEditor';
 
 // ── Stage 1: Hook Selection ───────────────────────────────────────────────────
 
@@ -10,21 +11,42 @@ interface HookStageProps {
   onHookConfirmed: (hookId: string, hookText: string, renderResult: RenderResult) => void;
 }
 
+type Stage = 'hook' | 'caption' | 'design';
+
 export function SelectionPanel({ result, onRenderComplete }: {
   result: GenerationResult;
   onRenderComplete: (jobId: string) => void;
 }) {
+  const [stage,        setStage]        = useState<Stage>('hook');
   const [renderResult, setRenderResult] = useState<RenderResult | null>(null);
 
   function handleHookConfirmed(_hookId: string, _hookText: string, rr: RenderResult) {
     setRenderResult(rr);
+    setStage('caption');
   }
 
-  if (renderResult) {
+  function handleCaptionConfirmed(rr: RenderResult) {
+    setRenderResult(rr);
+    setStage('design');
+  }
+
+  if (stage === 'design' && renderResult) {
+    return (
+      <RenderStage
+        renderResult={renderResult}
+        onRenderComplete={onRenderComplete}
+        onBack={() => setStage('caption')}
+        onDesignChange={(design) => setRenderResult({ ...renderResult, design })}
+      />
+    );
+  }
+
+  if (stage === 'caption' && renderResult) {
     return (
       <CaptionStage
         renderResult={renderResult}
-        onRenderComplete={onRenderComplete}
+        onCaptionConfirmed={handleCaptionConfirmed}
+        onBack={() => setStage('hook')}
       />
     );
   }
@@ -77,7 +99,7 @@ function HookStage({ result, onHookConfirmed }: HookStageProps) {
         <div className="flex items-center gap-2 mb-1">
           <span className="w-1.5 h-1.5 rounded-full bg-[#E8FF47]" />
           <span className="text-[10px] font-mono text-[#E8FF47] uppercase tracking-widest">
-            Step 1 of 2
+            Step 1 of 3
           </span>
         </div>
         <h2
@@ -137,38 +159,13 @@ function HookStage({ result, onHookConfirmed }: HookStageProps) {
 
 interface CaptionStageProps {
   renderResult: RenderResult;
-  onRenderComplete: (jobId: string) => void;
+  onCaptionConfirmed: (rr: RenderResult) => void;
+  onBack: () => void;
 }
 
-function CaptionStage({ renderResult, onRenderComplete }: CaptionStageProps) {
+function CaptionStage({ renderResult, onCaptionConfirmed, onBack }: CaptionStageProps) {
   const [selectedCaptionId, setSelectedCaptionId] = useState(renderResult.selectedCaptionId);
   const [expandedCaption,   setExpandedCaption]   = useState<string | null>(null);
-  const [isRendering,       setIsRendering]        = useState(false);
-  const [renderError,       setRenderError]        = useState<string | null>(null);
-
-  const handleRender = async () => {
-    setIsRendering(true);
-    setRenderError(null);
-    try {
-      const res = await fetch('/api/render', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          phase:             'render',
-          jobId:             renderResult.jobId,
-          selectedHookText:  renderResult.selectedHookText,
-          selectedHookId:    'confirmed',
-          selectedCaptionId,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? `Render failed (${res.status})`);
-      onRenderComplete(renderResult.jobId);
-    } catch (err) {
-      setRenderError(err instanceof Error ? err.message : 'Render failed');
-      setIsRendering(false);
-    }
-  };
 
   return (
     <div className="flex flex-col gap-8 max-w-2xl w-full">
@@ -178,7 +175,7 @@ function CaptionStage({ renderResult, onRenderComplete }: CaptionStageProps) {
         <div className="flex items-center gap-2 mb-1">
           <span className="w-1.5 h-1.5 rounded-full bg-[#3B82F6]" />
           <span className="text-[10px] font-mono text-[#3B82F6] uppercase tracking-widest">
-            Step 2 of 2
+            Step 2 of 3
           </span>
         </div>
         <h2
@@ -224,33 +221,89 @@ function CaptionStage({ renderResult, onRenderComplete }: CaptionStageProps) {
         </div>
       </section>
 
-      {/* Render error */}
+      {/* Navigation */}
+      <div className="flex gap-3">
+        <button
+          onClick={onBack}
+          className="px-5 py-3.5 border border-[#1E2329] text-[#5A6478] font-mono text-sm rounded hover:border-[#2A3140] hover:text-[#EEF2F7] transition-colors uppercase tracking-wide"
+        >
+          ← Back
+        </button>
+        <button
+          onClick={() => onCaptionConfirmed({ ...renderResult, selectedCaptionId })}
+          className="flex-1 py-3.5 bg-[#E8FF47] text-[#07080A] font-bold font-mono text-sm rounded hover:bg-[#F2FF70] active:scale-[0.99] transition-all uppercase tracking-[0.08em]"
+        >
+          Design Reel →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Render Stage (Step 3 wrapper with DesignEditor + final render) ────────────
+
+interface RenderStageProps {
+  renderResult: RenderResult;
+  onRenderComplete: (jobId: string) => void;
+  onBack: () => void;
+  onDesignChange: (design: DesignConfig) => void;
+}
+
+function RenderStage({ renderResult, onRenderComplete, onBack, onDesignChange }: RenderStageProps) {
+  const [isRendering,  setIsRendering]  = useState(false);
+  const [renderError,  setRenderError]  = useState<string | null>(null);
+
+  const handleConfirm = async (design: DesignConfig) => {
+    onDesignChange(design);
+    setIsRendering(true);
+    setRenderError(null);
+    try {
+      const res = await fetch('/api/render', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          phase:             'render',
+          jobId:             renderResult.jobId,
+          selectedHookText:  renderResult.selectedHookText,
+          selectedHookId:    'confirmed',
+          selectedCaptionId: renderResult.selectedCaptionId,
+          design,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `Render failed (${res.status})`);
+      onRenderComplete(renderResult.jobId);
+    } catch (err) {
+      setRenderError(err instanceof Error ? err.message : 'Render failed');
+      setIsRendering(false);
+    }
+  };
+
+  if (isRendering) {
+    return (
+      <div className="flex flex-col items-start gap-6 max-w-md">
+        <div className="flex items-center gap-3">
+          <SpinnerIcon />
+          <span className="text-[#E8FF47] font-mono text-sm uppercase tracking-widest">Rendering reel…</span>
+        </div>
+        <p className="text-[#5A6478] text-sm">Applying your design and compositing the video. This takes a moment.</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
       {renderError && (
-        <p className="text-xs text-red-400 font-mono border border-red-900/40 bg-red-950/20 px-3 py-2 rounded">
+        <p className="text-xs text-red-400 font-mono border border-red-900/40 bg-red-950/20 px-3 py-2 rounded mb-4 max-w-2xl">
           {renderError}
         </p>
       )}
-
-      {/* Render button */}
-      <button
-        onClick={handleRender}
-        disabled={isRendering}
-        className={`w-full py-3.5 rounded font-mono text-sm tracking-[0.08em] uppercase transition-all duration-200
-          ${isRendering
-            ? 'bg-[#0D0F12] text-[#353D4A] border border-[#1E2329] cursor-not-allowed'
-            : 'bg-[#E8FF47] text-[#07080A] font-bold hover:bg-[#F2FF70] active:scale-[0.99]'
-          }`}
-      >
-        {isRendering ? (
-          <span className="flex items-center justify-center gap-2">
-            <SpinnerIcon />
-            Rendering…
-          </span>
-        ) : (
-          'Render Reel'
-        )}
-      </button>
-    </div>
+      <DesignEditor
+        renderResult={renderResult}
+        onConfirm={handleConfirm}
+        onBack={onBack}
+      />
+    </>
   );
 }
 
