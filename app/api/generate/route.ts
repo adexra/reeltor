@@ -4,7 +4,7 @@ import { generateHooks, qaHooks } from '../../../skills/ai_copywriter';
 import { generateWordTimestamps } from '../../../skills/audio_transcriber';
 import { appendLog, appendErrorLog } from '../../../skills/library_manager';
 import {
-  createJob,
+  getJob,
   downloadRawVideo,
   savePhase1Results,
   failJob,
@@ -16,17 +16,17 @@ export const runtime = 'nodejs';
 export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
-  let body: { videoPath?: string; jobId?: string; config?: GenerateRequest };
+  let body: { videoPath?: string; jobId?: string };
   try {
     body = await req.json();
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400 });
   }
 
-  const { videoPath, jobId: existingJobId, config: generateRequest } = body;
+  const { videoPath, jobId: existingJobId } = body;
 
-  if (!videoPath || !generateRequest) {
-    return new Response(JSON.stringify({ error: 'Missing videoPath or config' }), { status: 400 });
+  if (!videoPath || !existingJobId) {
+    return new Response(JSON.stringify({ error: 'Missing videoPath or jobId' }), { status: 400 });
   }
 
   const encoder = new TextEncoder();
@@ -41,21 +41,14 @@ export async function POST(req: NextRequest) {
         }
       };
 
-      let jobId: string;
-      try {
-        jobId = existingJobId ?? await createJob(generateRequest);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        emit({ step: 'error', progress: 0, jobId: '', error: `Failed to create job: ${message}` });
-        controller.close();
-        return;
-      }
+      // Job row was created by /api/upload-url — just use the existing ID
+      const jobId = existingJobId;
 
       // Emit jobId immediately so the client can store it
       emit({ step: 'upload', progress: 5, jobId, message: 'Job created…' });
 
       try {
-        await runPhase1(jobId, videoPath, generateRequest, emit);
+        await runPhase1(jobId, videoPath, emit);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         await appendErrorLog(`[${new Date().toISOString()}] Job ${jobId} fatal error: ${message}`);
@@ -80,10 +73,25 @@ export async function POST(req: NextRequest) {
 async function runPhase1(
   jobId: string,
   rawVideoPath: string,
-  request: GenerateRequest,
   emit: (event: SSEProgressEvent) => void,
 ): Promise<void> {
   const ext = (rawVideoPath.split('.').pop() ?? 'mp4').toLowerCase();
+
+  // Fetch request context from the job row (created by /api/upload-url)
+  const jobRow = await getJob(jobId);
+  if (!jobRow) throw new Error(`Job not found: ${jobId}`);
+  const request: GenerateRequest = {
+    videoIdea:      jobRow.video_idea,
+    startTime:      Number(jobRow.start_time),
+    durationMode:   jobRow.duration_mode,
+    customDuration: jobRow.custom_duration ?? undefined,
+    context: {
+      businessName:       jobRow.business_name,
+      targetAudience:     jobRow.target_audience,
+      tone:               jobRow.tone as GenerateRequest['context']['tone'],
+      productDescription: jobRow.product_desc,
+    },
+  };
 
   await appendLog(`[${new Date().toISOString()}] Job ${jobId} Phase 1 started`);
 

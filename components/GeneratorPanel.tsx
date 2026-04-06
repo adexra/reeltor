@@ -506,7 +506,7 @@ export function GeneratorPanel({ context, onPhase1Complete }: Props) {
       const urlRes = await fetch('/api/upload-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ext }),
+        body: JSON.stringify({ ext, config: generateRequest }),
       });
       if (!urlRes.ok) throw new Error(`Upload URL error: ${urlRes.status}`);
       const { signedUrl, path, jobId: newJobId } = await urlRes.json();
@@ -533,7 +533,7 @@ export function GeneratorPanel({ context, onPhase1Complete }: Props) {
       res = await fetch('/api/generate', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ videoPath, jobId, config: generateRequest }),
+        body:    JSON.stringify({ videoPath, jobId }),
       });
       if (!res.ok || !res.body) throw new Error(`Server error: ${res.status}`);
     } catch (err) {
