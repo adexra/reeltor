@@ -124,6 +124,13 @@ function Slider({
 
 // ── Mock Phone Preview ────────────────────────────────────────────────────────
 
+const FONT_FAMILY_CSS: Record<string, string> = {
+  bebas:      '"Bebas Neue", Impact, sans-serif',
+  impact:     'Impact, "Arial Narrow", sans-serif',
+  oswald:     '"Oswald", "Bebas Neue", sans-serif',
+  montserrat: '"Montserrat", "DM Sans", sans-serif',
+};
+
 function MockPhone({
   hookText,
   handle,
@@ -131,6 +138,8 @@ function MockPhone({
   paletteColors,
   hookFontSize,
   baseFontSize,
+  font,
+  showCTA,
 }: {
   hookText:      string;
   handle:        string;
@@ -138,6 +147,8 @@ function MockPhone({
   paletteColors: PaletteColors;
   hookFontSize:  number;
   baseFontSize:  number;
+  font:          string;
+  showCTA:       boolean;
 }) {
   const displayHook = (hookText.trim() || 'YOUR HOOK HERE').toUpperCase();
 
@@ -182,7 +193,7 @@ function MockPhone({
         >
           <span
             style={{
-              fontFamily:       'Impact, "Arial Narrow", sans-serif',
+              fontFamily:       FONT_FAMILY_CSS[font] ?? FONT_FAMILY_CSS.bebas,
               fontSize:         `${effectiveFS * 0.55}rem`,
               fontWeight:       900,
               lineHeight:       1.05,
@@ -238,24 +249,26 @@ function MockPhone({
           </div>
         )}
 
-        {/* CTA hint */}
-        <div
-          className="absolute bottom-12 left-0 right-0 z-10 flex justify-center"
-        >
-          <span
-            style={{
-              fontFamily:  '"DM Sans", sans-serif',
-              fontSize:    `${baseFontSize * 0.4}rem`,
-              fontWeight:  500,
-              color:       'rgba(255,255,255,0.6)',
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              textShadow:  '0 1px 3px rgba(0,0,0,0.8)',
-            }}
+        {/* CTA hint — only when enabled */}
+        {showCTA && (
+          <div
+            className="absolute bottom-12 left-0 right-0 z-10 flex justify-center"
           >
-            Read Description
-          </span>
-        </div>
+            <span
+              style={{
+                fontFamily:  '"DM Sans", sans-serif',
+                fontSize:    `${baseFontSize * 0.4}rem`,
+                fontWeight:  500,
+                color:       'rgba(255,255,255,0.6)',
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                textShadow:  '0 1px 3px rgba(0,0,0,0.8)',
+              }}
+            >
+              Read Description
+            </span>
+          </div>
+        )}
 
         {/* Home indicator */}
         <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-10 h-0.5 rounded-full bg-white/20 z-20" />
@@ -514,6 +527,8 @@ export function DesignStudio({ value, onChange, hookText }: Props) {
           paletteColors={paletteColors}
           hookFontSize={hookFontSize}
           baseFontSize={baseFontSize}
+          font={value.font ?? 'bebas'}
+          showCTA={value.showCTA ?? false}
         />
       </div>
 

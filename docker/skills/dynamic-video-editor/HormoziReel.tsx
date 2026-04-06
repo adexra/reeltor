@@ -196,6 +196,7 @@ interface StaticHookProps {
   glowColor:   string;
   fontFamily:  string;
   positionY:   number;
+  showCTA:     boolean;
   hookFontPx:  number;
   baseFontPx:  number;
   frame:       number;
@@ -204,7 +205,7 @@ interface StaticHookProps {
 }
 
 function StaticHook({
-  text, accentColor, glowColor, fontFamily, positionY,
+  text, accentColor, glowColor, fontFamily, positionY, showCTA,
   hookFontPx, baseFontPx, frame, fps, animStyle,
 }: StaticHookProps) {
   // Entry animation — driven by design.animation
@@ -274,23 +275,25 @@ function StaticHook({
         }}
       />
 
-      <div
-        style={{
-          marginTop:        10,
-          fontFamily:       '"DM Sans", sans-serif',
-          fontSize:         Math.round(baseFontPx * 0.85),
-          fontWeight:       500,
-          color:            'rgba(255,255,255,0.72)',
-          textShadow:       '1px 2px 0 rgba(0,0,0,0.7)',
-          WebkitTextStroke: '1px rgba(0,0,0,0.5)',
-          paintOrder:       'stroke fill',
-          letterSpacing:    '0.06em',
-          textTransform:    'uppercase',
-          userSelect:       'none',
-        }}
-      >
-        Read Description
-      </div>
+      {showCTA && (
+        <div
+          style={{
+            marginTop:        10,
+            fontFamily:       '"DM Sans", sans-serif',
+            fontSize:         Math.round(baseFontPx * 0.85),
+            fontWeight:       500,
+            color:            'rgba(255,255,255,0.72)',
+            textShadow:       '1px 2px 0 rgba(0,0,0,0.7)',
+            WebkitTextStroke: '1px rgba(0,0,0,0.5)',
+            paintOrder:       'stroke fill',
+            letterSpacing:    '0.06em',
+            textTransform:    'uppercase',
+            userSelect:       'none',
+          }}
+        >
+          Read Description
+        </div>
+      )}
     </div>
   );
 }
@@ -454,6 +457,7 @@ export function HormoziReel({
           glowColor={glowColor}
           fontFamily={fontFamily}
           positionY={positionY}
+          showCTA={design.showCTA}
           hookFontPx={hookFontPx}
           baseFontPx={Math.round(baseFontSize * BASE_REM)}
           frame={frame}

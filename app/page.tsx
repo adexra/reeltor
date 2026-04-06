@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { ContextSidebar } from '../components/ContextSidebar';
 import { GeneratorPanel } from '../components/GeneratorPanel';
 import { SelectionPanel } from '../components/SelectionPanel';
@@ -16,7 +17,7 @@ const defaultContext: BusinessContext = {
 export default function HomePage() {
   const [context,          setContext]          = useState<BusinessContext>(defaultContext);
   const [generationResult, setGenerationResult] = useState<GenerationResult | null>(null);
-  const [renderDone,       setRenderDone]       = useState(false);
+  const [doneJobId,        setDoneJobId]        = useState<string | null>(null);
   const [sidebarOpen,      setSidebarOpen]      = useState(false);
   const [touchStartX,      setTouchStartX]      = useState<number | null>(null);
 
@@ -51,17 +52,14 @@ export default function HomePage() {
     }
   }
 
-  function handleRenderComplete(_jobId: string) {
-    setRenderDone(true);
-    // Mobile haptic feedback simulation
-    if (navigator.vibrate) {
-      navigator.vibrate([50, 50, 50]);
-    }
+  function handleRenderComplete(jobId: string) {
+    setDoneJobId(jobId);
+    if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
   }
 
   function handleReset() {
     setGenerationResult(null);
-    setRenderDone(false);
+    setDoneJobId(null);
   }
 
   return (
@@ -121,7 +119,7 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
-            {generationResult && !renderDone && (
+            {generationResult && !doneJobId && (
               <button
                 onClick={handleReset}
                 className="text-[9px] md:text-[10px] font-mono text-[#353D4A] hover:text-[#5A6478] transition-colors uppercase tracking-widest"
@@ -138,8 +136,8 @@ export default function HomePage() {
 
         {/* Content */}
         <div className="px-4 md:px-8 py-6 md:py-10">
-          {renderDone ? (
-            <RenderSuccess onReset={handleReset} />
+          {doneJobId ? (
+            <RenderSuccess jobId={doneJobId} onReset={handleReset} />
           ) : generationResult ? (
             <SelectionPanel result={generationResult} onRenderComplete={handleRenderComplete} />
           ) : (
@@ -151,22 +149,43 @@ export default function HomePage() {
   );
 }
 
-function RenderSuccess({ onReset }: { onReset: () => void }) {
+function RenderSuccess({ jobId, onReset }: { jobId: string; onReset: () => void }) {
+  // Build the mobile handoff URL — works on Vercel (uses window.location.origin)
+  const mobileUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/m/${jobId}`
+    : `/m/${jobId}`;
+
   return (
-    <div className="flex flex-col items-start gap-6 max-w-md">
+    <div className="flex flex-col items-start gap-8 max-w-md">
       <div className="flex items-center gap-3">
         <span className="w-2 h-2 rounded-full bg-[#E8FF47]" />
         <span className="text-[#E8FF47] font-mono text-sm uppercase tracking-widest">Reel rendered</span>
       </div>
+
       <h2
         style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.03em' }}
         className="text-2xl font-extrabold text-[#EEF2F7]"
       >
         Your reel is ready.
       </h2>
-      <p className="text-[#5A6478] text-sm">
-        It has been saved to your library. You can download it or generate another.
-      </p>
+
+      {/* QR Code handoff */}
+      <div className="flex flex-col gap-4">
+        <p className="text-[#5A6478] text-sm">
+          Scan with your phone to download the video and copy the caption for posting.
+        </p>
+        <div className="p-4 bg-white rounded-xl inline-block self-start">
+          <QRCodeSVG
+            value={mobileUrl}
+            size={180}
+            bgColor="#ffffff"
+            fgColor="#07080A"
+            level="M"
+          />
+        </div>
+        <p className="text-[10px] font-mono text-[#353D4A] break-all">{mobileUrl}</p>
+      </div>
+
       <div className="flex gap-3">
         <a
           href="/library"
