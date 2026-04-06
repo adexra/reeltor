@@ -498,13 +498,43 @@ export function GeneratorPanel({ context, onPhase1Complete }: Props) {
       context,
     };
 
-    const formData = new FormData();
-    formData.append('video', videoFile);
-    formData.append('config', JSON.stringify(generateRequest));
+    // Step 1: get a signed upload URL (tiny request, no file through Vercel)
+    let videoPath: string;
+    let jobId: string;
+    try {
+      const ext = videoFile.name.split('.').pop()?.toLowerCase() ?? 'mp4';
+      const urlRes = await fetch('/api/upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ext }),
+      });
+      if (!urlRes.ok) throw new Error(`Upload URL error: ${urlRes.status}`);
+      const { signedUrl, path, jobId: newJobId } = await urlRes.json();
+      videoPath = path;
+      jobId     = newJobId;
 
+      // Step 2: upload video directly from browser to Supabase (bypasses Vercel)
+      setProgressEvent({ step: 'upload', progress: 5, jobId, message: 'Uploading video…' });
+      const uploadRes = await fetch(signedUrl, {
+        method:  'PUT',
+        headers: { 'Content-Type': videoFile.type || 'video/mp4' },
+        body:    videoFile,
+      });
+      if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
+    } catch (err) {
+      setProgressEvent({ step: 'error', progress: 0, error: err instanceof Error ? err.message : 'Upload failed' });
+      setIsRunning(false);
+      return;
+    }
+
+    // Step 3: kick off generation with path reference only (no file in body)
     let res: Response;
     try {
-      res = await fetch('/api/generate', { method: 'POST', body: formData });
+      res = await fetch('/api/generate', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ videoPath, jobId, config: generateRequest }),
+      });
       if (!res.ok || !res.body) throw new Error(`Server error: ${res.status}`);
     } catch (err) {
       setProgressEvent({ step: 'error', progress: 0, error: err instanceof Error ? err.message : 'Failed to start job' });

@@ -1,12 +1,11 @@
 import { NextRequest } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
 import type { GenerateRequest, GenerationResult, SSEProgressEvent } from '../../../schema';
 import { generateHooks, qaHooks } from '../../../skills/ai_copywriter';
 import { generateWordTimestamps } from '../../../skills/audio_transcriber';
 import { appendLog, appendErrorLog } from '../../../skills/library_manager';
 import {
   createJob,
-  uploadRawVideo,
+  downloadRawVideo,
   savePhase1Results,
   failJob,
   updateJobProgress,
@@ -17,25 +16,17 @@ export const runtime = 'nodejs';
 export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
-  let formData: FormData;
+  let body: { videoPath?: string; jobId?: string; config?: GenerateRequest };
   try {
-    formData = await req.formData();
+    body = await req.json();
   } catch {
-    return new Response(JSON.stringify({ error: 'Invalid form data' }), { status: 400 });
+    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400 });
   }
 
-  const videoFile = formData.get('video')  as File | null;
-  const configRaw = formData.get('config') as string | null;
+  const { videoPath, jobId: existingJobId, config: generateRequest } = body;
 
-  if (!videoFile || !configRaw) {
-    return new Response(JSON.stringify({ error: 'Missing video or config' }), { status: 400 });
-  }
-
-  let generateRequest: GenerateRequest;
-  try {
-    generateRequest = JSON.parse(configRaw);
-  } catch {
-    return new Response(JSON.stringify({ error: 'Invalid config JSON' }), { status: 400 });
+  if (!videoPath || !generateRequest) {
+    return new Response(JSON.stringify({ error: 'Missing videoPath or config' }), { status: 400 });
   }
 
   const encoder = new TextEncoder();
@@ -52,7 +43,7 @@ export async function POST(req: NextRequest) {
 
       let jobId: string;
       try {
-        jobId = await createJob(generateRequest);
+        jobId = existingJobId ?? await createJob(generateRequest);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         emit({ step: 'error', progress: 0, jobId: '', error: `Failed to create job: ${message}` });
@@ -64,7 +55,7 @@ export async function POST(req: NextRequest) {
       emit({ step: 'upload', progress: 5, jobId, message: 'Job created…' });
 
       try {
-        await runPhase1(jobId, videoFile, generateRequest, emit);
+        await runPhase1(jobId, videoPath, generateRequest, emit);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         await appendErrorLog(`[${new Date().toISOString()}] Job ${jobId} fatal error: ${message}`);
@@ -88,33 +79,27 @@ export async function POST(req: NextRequest) {
 
 async function runPhase1(
   jobId: string,
-  videoFile: File,
+  rawVideoPath: string,
   request: GenerateRequest,
   emit: (event: SSEProgressEvent) => void,
 ): Promise<void> {
-  const ext = (videoFile.name.split('.').pop() ?? 'mp4').toLowerCase();
-  const allowedExtensions = ['mp4', 'mov', 'webm'];
-
-  if (!allowedExtensions.includes(ext)) {
-    throw new Error(`Unsupported video format: .${ext}. Allowed: ${allowedExtensions.join(', ')}`);
-  }
+  const ext = (rawVideoPath.split('.').pop() ?? 'mp4').toLowerCase();
 
   await appendLog(`[${new Date().toISOString()}] Job ${jobId} Phase 1 started`);
 
-  emit({ step: 'upload', progress: 10, jobId, message: 'Uploading video…' });
-  await updateJobProgress(jobId, 'upload', 10);
-
-  const buffer = Buffer.from(await videoFile.arrayBuffer());
-  const rawVideoPath = await uploadRawVideo(jobId, buffer, ext);
-
-  emit({ step: 'upload', progress: 20, jobId, message: 'Video saved. Transcribing audio…' });
-  await updateJobProgress(jobId, 'upload', 20);
+  // Video is already in Supabase — just record the path on the job row
+  emit({ step: 'upload', progress: 15, jobId, message: 'Video uploaded. Transcribing audio…' });
+  await updateJob(jobId, { raw_video_path: rawVideoPath });
+  await updateJobProgress(jobId, 'upload', 15);
 
   const mimeMap: Record<string, 'video/mp4' | 'video/quicktime' | 'video/webm'> = {
     mp4:  'video/mp4',
     mov:  'video/quicktime',
     webm: 'video/webm',
   };
+
+  // Download from Supabase for Whisper (server-side, not through Vercel request)
+  const buffer = await downloadRawVideo(rawVideoPath);
 
   const whisperPromise = generateWordTimestamps(
     buffer,
@@ -158,6 +143,7 @@ async function runPhase1(
     `[${new Date().toISOString()}] Job ${jobId} Phase 1 complete. ` +
     `hooks=${scoredHooks.length} rawVideoPath=${rawVideoPath}`,
   );
+
 
   emit({ step: 'ready', progress: 100, jobId, message: 'Pick your hook', result });
 }
