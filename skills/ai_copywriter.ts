@@ -14,15 +14,18 @@ export type { TranscriptResult as WhisperTranscriptResult, WordTimestamp as Whis
 // ── Azure OpenAI helper ───────────────────────────────────────────────────────
 
 async function azureChat(systemPrompt: string, userPrompt: string): Promise<string> {
-  const endpoint   = process.env.AZURE_OPENAI_ENDPOINT;
-  const apiKey     = process.env.AZURE_OPENAI_KEY ?? process.env.AZURE_OPENAI_API_KEY;
-  const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
+  const endpoint    = process.env.AZURE_OPENAI_ENDPOINT;
+  const apiKey      = process.env.AZURE_OPENAI_KEY ?? process.env.AZURE_OPENAI_API_KEY ?? process.env.AZURE_OPENAI_API_KEY;
+  const deployment  = process.env.AZURE_OPENAI_DEPLOYMENT || process.env.AZURE_OPENAI_DEPLOYMENT_NAME_GPT4O_MINI;
+  const apiVersion  = process.env.AZURE_OPENAI_API_VERSION_GPT4O_MINI || '2024-02-01';
 
   if (!endpoint || !apiKey || !deployment) {
-    throw new Error('Azure OpenAI environment variables are not configured.');
+    throw new Error(`Azure OpenAI environment variables are not configured correctly. Missing: ${!endpoint ? 'ENDPOINT ' : ''}${!apiKey ? 'KEY ' : ''}${!deployment ? 'DEPLOYMENT' : ''}`);
   }
 
-  const url = `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=2024-02-01`;
+  // Ensure endpoint doesn't have trailing slash
+  const base = endpoint.replace(/\/$/, '');
+  const url = `${base}/openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`;
 
   let res;
   try {
@@ -39,17 +42,29 @@ async function azureChat(systemPrompt: string, userPrompt: string): Promise<stri
       }),
     });
   } catch (err) {
-    throw new Error(`Azure OpenAI request failed: ${err instanceof Error ? err.message : String(err)}`);
+    throw new Error(`Azure OpenAI network request failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`Azure OpenAI error (${res.status}): ${errText}`);
+    console.error(`[azureChat] Error ${res.status}:`, errText);
+    throw new Error(`Azure OpenAI error (${res.status}): ${errText.slice(0, 500)}`);
   }
 
-  const data = await res.json();
-  const raw  = data.choices?.[0]?.message?.content as string | undefined;
-  if (!raw) throw new Error('Azure OpenAI returned an empty response.');
+  const rawText = await res.text();
+  let data;
+  try {
+    data = JSON.parse(rawText);
+  } catch (parseErr) {
+    console.error('[azureChat] JSON Parse Error. Raw response:', rawText);
+    throw new Error(`Azure OpenAI returned invalid JSON. Content starts with: ${rawText.slice(0, 100)}`);
+  }
+
+  const raw = data.choices?.[0]?.message?.content as string | undefined;
+  if (!raw) {
+    console.error('[azureChat] Empty choices in response:', data);
+    throw new Error('Azure OpenAI returned an empty response (no choices).');
+  }
 
   return raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
 }
