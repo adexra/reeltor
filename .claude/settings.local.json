@@ -23,7 +23,23 @@
       "Bash(curl -L \"https://github.com/google/fonts/raw/main/ofl/dmsans/DMSans%5Bopsz%2Cwght%5D.ttf\" -o DMSans-Regular.ttf)",
       "Bash(ffmpeg -f lavfi -i color=black:size=1080x1920:duration=1 -vf 'drawtext=text='\\\\''TEST HOOK'\\\\'':fontfile='\\\\''F\\\\:/automated-sites/Automations/reelator/assets/fonts/BebasNeue-Regular.ttf'\\\\'':fontsize=88:fontcolor=white:borderw=3:bordercolor=black:x=\\(w-text_w\\)/2:y=h*0.35' -frames:v 1 -f null -)",
       "Bash(node -e \"const i = require\\('@ffmpeg-installer/ffmpeg'\\); console.log\\(i.path\\)\")",
-      "Bash(node -e \"console.log\\(require.resolve\\('@ffmpeg-installer/ffmpeg'\\)\\)\")"
+      "Bash(node -e \"console.log\\(require.resolve\\('@ffmpeg-installer/ffmpeg'\\)\\)\")",
+      "Bash(grep -v \"^$\")",
+      "mcp__claude_ai_Supabase__list_projects",
+      "mcp__claude_ai_Supabase__apply_migration",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "Bash(rm:*)",
+      "Bash(chmod +x \"F:\\\\automated-sites\\\\Automations\\\\reelator\\\\.git\\\\hooks\\\\pre-commit\")",
+      "Bash(npm uninstall:*)",
+      "Bash(node -e ':*)",
+      "mcp__claude_ai_Vercel__list_teams",
+      "mcp__claude_ai_Vercel__list_projects",
+      "mcp__claude_ai_Vercel__list_deployments",
+      "mcp__claude_ai_Vercel__get_project",
+      "mcp__claude_ai_Vercel__get_deployment",
+      "mcp__claude_ai_Vercel__get_runtime_logs",
+      "Bash(curl:*)",
+      "Bash(az containerapp:*)"
     ]
   }
 }

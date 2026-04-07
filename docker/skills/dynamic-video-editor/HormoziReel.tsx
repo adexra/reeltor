@@ -264,14 +264,15 @@ function StaticHook({
         </div>
       ))}
 
-      {/* Divider — matches canvas: thin horizontal stroke, rgba white at 40% */}
+      {/* Accent divider */}
       <div
         style={{
-          marginTop:    12,
-          width:        200,
-          height:       2,
-          borderRadius: 1,
-          background:   'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
+          marginTop:       12,
+          width:           120,
+          height:          3,
+          borderRadius:    2,
+          background:      `linear-gradient(90deg, transparent, ${accentColor}, transparent)`,
+          opacity:         0.9,
         }}
       />
 
@@ -280,13 +281,13 @@ function StaticHook({
           style={{
             marginTop:        10,
             fontFamily:       '"DM Sans", sans-serif',
-            fontSize:         Math.round(baseFontPx * 0.85),
+            fontSize:         Math.round(baseFontPx * 0.95),
             fontWeight:       500,
-            color:            'rgba(255,255,255,0.72)',
+            color:            'rgba(255,255,255,0.75)',
             textShadow:       '1px 2px 0 rgba(0,0,0,0.7)',
             WebkitTextStroke: '1px rgba(0,0,0,0.5)',
             paintOrder:       'stroke fill',
-            letterSpacing:    '0.06em',
+            letterSpacing:    '0.04em',
             textTransform:    'uppercase',
             userSelect:       'none',
           }}
@@ -311,7 +312,7 @@ function Scrim({ positionY }: { positionY: number }) {
         right:      0,
         top:        `${top * 100}%`,
         height:     `${height * 100}%`,
-        background: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.55) 25%, rgba(0,0,0,0.65) 50%, rgba(0,0,0,0.55) 75%, transparent 100%)',
+        background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.65) 30%, rgba(0,0,0,0.72) 50%, rgba(0,0,0,0.65) 70%, transparent)',
         pointerEvents: 'none',
       }}
     />
@@ -357,15 +358,13 @@ export function HormoziReel({
   const BASE_REM    = 40;
   const baseFontSize = design.baseFontSize ?? 1.0;
 
-  // Hook font size — proportional auto-scale matching GeneratorPanel canvas logic:
-  // Short hook (<10 words) scales linearly from 2.5→3.2rem.
-  // Only applies when user hasn't overridden from the default 2.5.
+  // Hook font size with auto-scale rule:
+  // If user picks 2.5× but the hook is < 3 words, bump to 3.0× for impact.
   const rawHookFontSize = design.hookFontSize ?? 2.5;
   const hookWordCount   = hookText.trim().split(/\s+/).filter(Boolean).length;
-  const autoScaledRem   = hookWordCount < 10
-    ? Math.max(2.5, Math.min(3.2, 3.2 - (hookWordCount - 1) * 0.08))
-    : 2.5;
-  const hookFontSizeRem = rawHookFontSize === 2.5 ? autoScaledRem : rawHookFontSize;
+  const hookFontSizeRem = rawHookFontSize === 2.5 && hookWordCount < 3
+    ? 3.0
+    : rawHookFontSize;
   const hookFontPx = Math.round(hookFontSizeRem * BASE_REM);
 
   const positionFraction: Record<string, number> = {
