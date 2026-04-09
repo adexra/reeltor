@@ -69,7 +69,16 @@ interface RenderBody {
   design?: DesignConfig;
 }
 
-type RequestBody = CaptionsBody | RenderBody;
+interface DesignOnlyBody {
+  phase: 'render-design-only';
+  jobId: string;
+  selectedHookText: string;
+  selectedHookId: string;
+  selectedCaptionId: string;
+  design?: DesignConfig;
+}
+
+type RequestBody = CaptionsBody | RenderBody | DesignOnlyBody;
 
 // ── Router ────────────────────────────────────────────────────────────────────
 
@@ -81,9 +90,45 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  if (body.phase === 'captions') return handleCaptions(body);
-  if (body.phase === 'render')   return handleRender(body);
+  if (body.phase === 'captions')           return handleCaptions(body);
+  if (body.phase === 'render')             return handleRender(body);
+  if (body.phase === 'render-design-only') return handleDesignOnly(body);
   return NextResponse.json({ error: 'Invalid phase' }, { status: 400 });
+}
+
+// ── Design-only save (browser render path) ────────────────────────────────────
+// Saves the confirmed caption + design to the job row so /api/record-data
+// can serve the full config to the browser recorder. No Azure dispatch.
+
+async function handleDesignOnly(body: DesignOnlyBody): Promise<NextResponse> {
+  const { jobId, selectedHookText, selectedCaptionId, design } = body;
+  try {
+    const job = await getJob(jobId);
+    if (!job) return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+
+    const captionOptions = (job.captions ?? []) as Array<{ id: string; text: string }>;
+    const selectedCaption = captionOptions.find((c) => c.id === selectedCaptionId);
+
+    await updateJob(jobId, {
+      selected_hook_text:    selectedHookText,
+      selected_caption_id:   selectedCaptionId,
+      selected_caption_text: selectedCaption?.text ?? '',
+      ...(design && {
+        palette:       design.palette,
+        font:          design.font,
+        animation:     design.animation,
+        light_streak:  design.lightStreak,
+        text_position: design.textPosition,
+        show_cta:      design.showCTA,
+        design_config: design,
+      }),
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 // ── Phase 2a: generate caption options ────────────────────────────────────────

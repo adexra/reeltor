@@ -329,6 +329,7 @@ function RenderStage({
   onRenderComplete: (jobId: string) => void;
   onBack: () => void;
 }) {
+  const [renderMethod, setRenderMethod] = useState<'browser' | 'cloud' | null>(null);
   const [isRendering, setIsRendering] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [statusMsg,   setStatusMsg]   = useState('Dispatching to Azure render server…');
@@ -461,13 +462,110 @@ function RenderStage({
     );
   }
 
+  // ── Render method picker ───────────────────────────────────────────────────
+  if (!renderMethod) {
+    return (
+      <div className="flex flex-col gap-8 max-w-2xl w-full">
+        <div>
+          <StepLabel step={3} total={3} color="#E8FF47" />
+          <h2 className="text-2xl font-extrabold text-[#EEF2F7] leading-none" style={{ letterSpacing: '-0.03em' }}>
+            Choose Render Method
+          </h2>
+          <p className="text-[#5A6478] text-sm mt-2">
+            How should your reel be rendered?
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Browser */}
+          <button
+            onClick={() => setRenderMethod('browser')}
+            className="flex flex-col gap-3 p-5 rounded-xl border border-[#1E2329] bg-[#0D0F12] hover:border-[#E8FF4760] hover:bg-[#E8FF4706] transition-all duration-200 text-left group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg border border-[#E8FF4740] bg-[#E8FF4710] flex items-center justify-center">
+                <span className="text-[#E8FF47] text-sm">⚡</span>
+              </div>
+              <span className="text-[#EEF2F7] font-bold font-mono text-sm">Browser</span>
+              <span className="ml-auto text-[10px] font-mono text-[#E8FF47] border border-[#E8FF4740] px-2 py-0.5 rounded uppercase tracking-wide">Fast</span>
+            </div>
+            <p className="text-[#5A6478] text-xs leading-relaxed">
+              Renders instantly in your browser. No cloud, no wait. Best for clips under 30s.
+            </p>
+            <ul className="flex flex-col gap-1">
+              {['Instant — no queue', 'Runs in your browser', 'Perfect text rendering'].map((f) => (
+                <li key={f} className="text-[11px] font-mono text-[#5A6478] flex items-center gap-2">
+                  <span className="text-[#39FF14]">✓</span> {f}
+                </li>
+              ))}
+            </ul>
+          </button>
+
+          {/* Cloud */}
+          <button
+            onClick={() => setRenderMethod('cloud')}
+            className="flex flex-col gap-3 p-5 rounded-xl border border-[#1E2329] bg-[#0D0F12] hover:border-[#3B82F660] hover:bg-[#3B82F606] transition-all duration-200 text-left group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg border border-[#3B82F640] bg-[#3B82F610] flex items-center justify-center">
+                <span className="text-[#3B82F6] text-sm">☁</span>
+              </div>
+              <span className="text-[#EEF2F7] font-bold font-mono text-sm">Cloud</span>
+              <span className="ml-auto text-[10px] font-mono text-[#3B82F6] border border-[#3B82F640] px-2 py-0.5 rounded uppercase tracking-wide">Remotion</span>
+            </div>
+            <p className="text-[#5A6478] text-xs leading-relaxed">
+              Renders on Azure using Remotion. Handles long clips and runs in the background.
+            </p>
+            <ul className="flex flex-col gap-1">
+              {['Runs in the background', 'Handles 60s+ clips', 'Whisper word captions'].map((f) => (
+                <li key={f} className="text-[11px] font-mono text-[#5A6478] flex items-center gap-2">
+                  <span className="text-[#3B82F6]">✓</span> {f}
+                </li>
+              ))}
+            </ul>
+          </button>
+        </div>
+
+        <BackButton onClick={onBack} />
+      </div>
+    );
+  }
+
+  // ── Browser path — save design then redirect to recorder ──────────────────
+  if (renderMethod === 'browser') {
+    return (
+      <DesignEditor
+        renderResult={{ ...renderResult, design }}
+        onConfirm={async (finalDesign) => {
+          onDesignChange(finalDesign);
+          // Save design to DB then open recorder page
+          await fetch('/api/render', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+              phase:             'render-design-only',
+              jobId:             renderResult.jobId,
+              selectedHookText:  renderResult.selectedHookText,
+              selectedHookId:    'confirmed',
+              selectedCaptionId: renderResult.selectedCaptionId,
+              design:            finalDesign,
+            }),
+          }).catch(() => {}); // non-fatal if this fails
+          window.location.href = `/record/${renderResult.jobId}`;
+        }}
+        onBack={() => setRenderMethod(null)}
+      />
+    );
+  }
+
+  // ── Cloud path — existing Remotion flow ───────────────────────────────────
   return (
     <>
       {renderError && <ErrorBox message={renderError} />}
       <DesignEditor
         renderResult={{ ...renderResult, design }}
         onConfirm={handleConfirm}
-        onBack={onBack}
+        onBack={() => setRenderMethod(null)}
       />
     </>
   );

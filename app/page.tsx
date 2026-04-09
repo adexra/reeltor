@@ -17,7 +17,11 @@ const defaultContext: BusinessContext = {
 export default function HomePage() {
   const [context,          setContext]          = useState<BusinessContext>(defaultContext);
   const [generationResult, setGenerationResult] = useState<GenerationResult | null>(null);
-  const [doneJobId,        setDoneJobId]        = useState<string | null>(null);
+  const [doneJobId,        setDoneJobId]        = useState<string | null>(() => {
+    // Browser recorder redirects back with ?done=jobId
+    if (typeof window === 'undefined') return null;
+    return new URLSearchParams(window.location.search).get('done');
+  });
   const [sidebarOpen,      setSidebarOpen]      = useState(false);
   const [touchStartX,      setTouchStartX]      = useState<number | null>(null);
 
