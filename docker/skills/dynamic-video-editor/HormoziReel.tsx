@@ -225,15 +225,6 @@ function StaticHook({
     opacity = interpolate(frame, [0, 8], [0, 1], { extrapolateRight: 'clamp' });
   }
 
-  // Split into natural chunks of 2–3 words per line for Hormozi-style layout.
-  // Short hooks (1–2 words) stay on one line; longer ones get chunked at 3 words.
-  const words = text.toUpperCase().split(/\s+/).filter(Boolean);
-  const chunkSize = words.length <= 2 ? words.length : 3;
-  const lines: string[] = [];
-  for (let i = 0; i < words.length; i += chunkSize) {
-    lines.push(words.slice(i, i + chunkSize).join(' '));
-  }
-
   return (
     <div
       style={{
@@ -246,33 +237,30 @@ function StaticHook({
         display:          'flex',
         flexDirection:    'column',
         alignItems:       'center',
-        gap:              8,
         paddingInline:    64,
         pointerEvents:    'none',
       }}
     >
-      {lines.map((line, i) => (
-        <div
-          key={i}
-          style={{
-            fontFamily,
-            fontSize:         hookFontPx,
-            fontWeight:       900,
-            lineHeight:       1.05,
-            letterSpacing:    '0.02em',
-            textTransform:    'uppercase',
-            color:            accentColor,
-            textShadow:       `0 0 40px ${glowColor}, 0 0 10px ${glowColor}, 3px 5px 0 rgba(0,0,0,0.95)`,
-            WebkitTextStroke: '4px rgba(0,0,0,0.95)',
-            paintOrder:       'stroke fill',
-            textAlign:        'center',
-            userSelect:       'none',
-            wordBreak:        'keep-all',
-          }}
-        >
-          {line}
-        </div>
-      ))}
+      {/* Single block — browser wraps naturally at container width, no forced line breaks */}
+      <div
+        style={{
+          fontFamily,
+          fontSize:         hookFontPx,
+          fontWeight:       900,
+          lineHeight:       1.1,
+          letterSpacing:    '0.02em',
+          textTransform:    'uppercase',
+          color:            accentColor,
+          textShadow:       `0 0 40px ${glowColor}, 0 0 10px ${glowColor}, 3px 5px 0 rgba(0,0,0,0.95)`,
+          WebkitTextStroke: '4px rgba(0,0,0,0.95)',
+          paintOrder:       'stroke fill',
+          textAlign:        'center',
+          userSelect:       'none',
+          width:            '100%',
+        }}
+      >
+        {text.toUpperCase()}
+      </div>
 
       {/* Accent divider */}
       <div
