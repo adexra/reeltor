@@ -194,7 +194,7 @@ export function SelectionPanel({ result, onRenderComplete }: {
       <CaptionStage
         renderResult={renderResult}
         onCaptionConfirmed={handleCaptionConfirmed}
-        onBack={() => setStage('hook')}
+        onBack={() => setStage('loading_captions')}
       />
     );
   }
