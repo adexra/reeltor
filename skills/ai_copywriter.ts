@@ -71,53 +71,45 @@ async function azureChat(systemPrompt: string, userPrompt: string): Promise<stri
 
 // ── 1. generateHooks ─────────────────────────────────────────────────────────
 
+function loadHookSkill(): string {
+  const skillPath = join(process.cwd(), 'skills', 'hooks', 'skill.md');
+  return readFileSync(skillPath, 'utf8');
+}
+
 export async function generateHooks(
   videoIdea: string,
   context: BusinessContext,
 ): Promise<Array<{ id: string; text: string }>> {
-  const system = `You are a viral short-form video strategist. You write hooks for Instagram Reels that stop scrollers cold. A hook appears as a 2–6 word text overlay in the first second of the video.
+  const hookSkill = loadHookSkill();
 
-WHAT MAKES A HOOK VIRAL:
-- It opens a curiosity gap — the viewer MUST watch to get the answer
-- It makes a bold or counterintuitive claim
-- It speaks directly to the viewer's pain, desire, or identity
-- It uses the video's specific content — NOT generic descriptions of what the video is about
+  const system = `You are a viral short-form video strategist. You write hooks for Instagram Reels that stop scrollers cold.
 
-WHAT KILLS A HOOK (never do these):
-- Generic topic summaries ("How to travel better", "Morning routine tips")
-- Filler openers ("The secret to", "How I", "Why you should", "Here's")
-- Verb + "your" constructions ("Protect your", "Transform your", "Unlock your", "Boost your") — max score 5
-- Self-help book titles ("Protect your sanity", "Master your mindset") — max score 5
-- Vague claims that apply to any niche ("This changed everything") — max score 4
-- More than 7 words — max score 6
+Read and follow these skill guidelines exactly:
 
-REWARD these:
-- Hooks specific to the audience's exact situation
-- Counterintuitive or slightly controversial ("Stop optimizing your morning")
-- Something overheard in conversation, not written for an ad
-- Knowledge gap ("Why your X is actually Y")
+${hookSkill}
 
-Output valid JSON only.`;
+Output valid JSON only. No markdown, no preamble.`;
 
-  const user = `Write exactly 5 hooks for a reel about:
+  const user = `Write exactly 5 hooks for this reel.
+
 Video content: ${videoIdea}
 Business: ${context.businessName}
 Audience: ${context.targetAudience}
 Tone: ${context.tone}
 
-Each hook must use a DIFFERENT viral angle:
-1. Pattern interrupt — says the opposite of what people expect
-2. Direct address — calls out the viewer by their specific situation
-3. Specific claim — a precise, bold, verifiable-sounding statement (must use a number or concrete detail)
-4. Tension/stakes — something will be lost or revealed if they don't watch
-5. Provocative question — sounds wrong or surprising, demands an answer
+Each hook must use a DIFFERENT viral angle from the skill:
+1. Pattern interrupt
+2. Direct address
+3. Specific claim (must include a number or concrete detail)
+4. Tension/stakes
+5. Provocative question
 
-Rules:
-- 2 to 6 words per hook
+Hard rules:
+- 2–6 words per hook
 - No punctuation at end
-- No filler openers: "The secret", "How to", "Why you", "This is", "Here's"
-- No verb + "your" ("Protect your...", "Transform your...")
-- Every hook grounded in the SPECIFIC video content, not the topic category
+- No filler openers: "The secret", "How to", "Why you", "Here's", "This is"
+- No verb + "your" constructions ("Protect your", "Transform your", "Unlock your")
+- Every hook must be grounded in the SPECIFIC video content described above — not the topic category
 - Write in the language that best matches the target audience
 
 Return exactly:
@@ -144,22 +136,15 @@ Return exactly:
 export async function qaHooks(
   hooks: Array<{ id: string; text: string }>,
 ): Promise<HookOption[]> {
-  const system = `You are a viral content analyst who has studied 10,000+ high-performing Reels. You score hooks with brutal precision. Output valid JSON only.
+  const hookSkill = loadHookSkill();
 
-SCORING RUBRIC (1–10):
-9–10: Stops anyone mid-scroll. Creates a gap the viewer MUST close. Specific, not generic.
-7–8: Strong curiosity or tension. Specific to the content. Would perform well.
-5–6: Adequate but forgettable. Applies to any video on this topic.
-3–4: Generic. Sounds like a topic title. No tension or curiosity.
-1–2: Actively bad. Filler, vague, or bragging without stakes.
+  const system = `You are a viral content analyst who scores hooks with brutal precision. Output valid JSON only.
 
-MANDATORY PENALTIES — apply before scoring:
-- Verb + "your" construction ("Protect your", "Transform your", "Unlock your"): cap score at 5
-- Sounds like a self-help book title: cap score at 5
-- Could describe 100 other videos on this topic: subtract 3
-- Filler opener used ("The secret to", "How to", "Why you should"): subtract 2
-- No curiosity gap or tension of any kind: subtract 2
-- More than 7 words: cap score at 6`;
+Use the following skill guidelines as your scoring standard:
+
+${hookSkill}
+
+Be harsh — most hooks score 4–7. Only genuinely scroll-stopping hooks hit 8+. Apply every penalty rule listed above before assigning a final score.`;
 
   const user = `Score each of these hooks:
 ${JSON.stringify(hooks)}
