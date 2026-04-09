@@ -8,7 +8,7 @@ import type {
   HookOption,
   SSEProgressEvent,
 } from '../schema';
-import { CLIP_DURATIONS } from '../schema';
+import { DURATION_PRESETS } from '../schema';
 import { ProgressTracker } from './ProgressTracker';
 
 interface Props {
@@ -420,8 +420,9 @@ export function GeneratorPanel({ context, onPhase1Complete }: Props) {
   const [isDragging,       setIsDragging]       = useState(false);
   const [videoIdea,        setVideoIdea]        = useState('');
   const [startTime,        setStartTime]        = useState(0);
-  const [durationMode,     setDurationMode]     = useState<'short' | 'standard'>('short');
-  const [customDuration,   setCustomDuration]   = useState(15);
+  const [customDuration,   setCustomDuration]   = useState<number>(5);
+  const [matchVideo,       setMatchVideo]       = useState(false);
+  const [videoDuration,    setVideoDuration]    = useState<number | null>(null);
   const [isRunning,        setIsRunning]        = useState(false);
   const [progressEvent,    setProgressEvent]    = useState<SSEProgressEvent | null>(null);
   const [completedJobId,   setCompletedJobId]   = useState<string | null>(null);
@@ -459,6 +460,21 @@ export function GeneratorPanel({ context, onPhase1Complete }: Props) {
     } catch {}
   }, []);
 
+  // Detect video duration when file is picked
+  useEffect(() => {
+    if (!videoFile) { setVideoDuration(null); return; }
+    const url = URL.createObjectURL(videoFile);
+    const vid = document.createElement('video');
+    vid.preload = 'metadata';
+    vid.onloadedmetadata = () => {
+      const dur = Math.round(vid.duration);
+      setVideoDuration(dur);
+      URL.revokeObjectURL(url);
+    };
+    vid.onerror = () => URL.revokeObjectURL(url);
+    vid.src = url;
+  }, [videoFile]);
+
   const dropZoneInputId = useId();
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -490,11 +506,12 @@ export function GeneratorPanel({ context, onPhase1Complete }: Props) {
     setActivePreviewHook('');
     setPendingResult(null);
 
+    const effectiveDuration = matchVideo && videoDuration ? videoDuration : customDuration;
     const generateRequest: GenerateRequest = {
       videoIdea,
       startTime,
-      durationMode,
-      customDuration: durationMode === 'standard' ? customDuration : undefined,
+      durationMode:   'custom',
+      customDuration: effectiveDuration,
       context,
     };
 
@@ -708,36 +725,38 @@ export function GeneratorPanel({ context, onPhase1Complete }: Props) {
 
         {/* Duration */}
         <FormField label="Clip Duration">
-          <div className="flex gap-2">
-            {(['short', 'standard'] as const).map((mode) => (
-              <button key={mode} type="button" onClick={() => setDurationMode(mode)}
-                className={`flex-1 py-2.5 px-4 text-xs font-mono rounded border transition-all duration-150 ${
-                  durationMode === mode
+          <div className="flex flex-wrap gap-2">
+            {DURATION_PRESETS.map((sec) => (
+              <button
+                key={sec}
+                type="button"
+                onClick={() => { setCustomDuration(sec); setMatchVideo(false); }}
+                className={`px-3 py-2 text-xs font-mono rounded border transition-all duration-150 ${
+                  !matchVideo && customDuration === sec
                     ? 'border-[#E8FF47] bg-[#E8FF4712] text-[#E8FF47]'
                     : 'border-[#1E2329] text-[#5A6478] hover:border-[#2A3140] hover:text-[#EEF2F7]'
-                }`}>
-                {mode === 'short'
-                  ? `Short  ${CLIP_DURATIONS.short.min}–${CLIP_DURATIONS.short.max}s`
-                  : `Standard  ${CLIP_DURATIONS.standard.min}–${CLIP_DURATIONS.standard.max}s`}
+                }`}
+              >
+                {sec}s
               </button>
             ))}
+            {videoDuration && (
+              <button
+                type="button"
+                onClick={() => setMatchVideo((v) => !v)}
+                className={`px-3 py-2 text-xs font-mono rounded border transition-all duration-150 ${
+                  matchVideo
+                    ? 'border-[#E8FF47] bg-[#E8FF4712] text-[#E8FF47]'
+                    : 'border-[#1E2329] text-[#5A6478] hover:border-[#2A3140] hover:text-[#EEF2F7]'
+                }`}
+              >
+                Match video ({videoDuration}s)
+              </button>
+            )}
           </div>
-          {durationMode === 'standard' && (
-            <div className="mt-4 flex flex-col gap-2">
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] font-mono text-[#353D4A] uppercase tracking-widest">{CLIP_DURATIONS.standard.min}s</span>
-                <span className="text-sm font-mono text-[#E8FF47]">{customDuration}s</span>
-                <span className="text-[10px] font-mono text-[#353D4A] uppercase tracking-widest">{CLIP_DURATIONS.standard.max}s</span>
-              </div>
-              <input
-                type="range"
-                min={CLIP_DURATIONS.standard.min}
-                max={CLIP_DURATIONS.standard.max}
-                value={customDuration}
-                onChange={(e) => setCustomDuration(parseInt(e.target.value))}
-              />
-            </div>
-          )}
+          <p className="text-[10px] font-mono text-[#353D4A] mt-1">
+            Selected: <span className="text-[#E8FF47]">{matchVideo && videoDuration ? videoDuration : customDuration}s</span>
+          </p>
         </FormField>
 
         {/* Progress */}

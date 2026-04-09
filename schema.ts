@@ -1,6 +1,6 @@
 // schema.ts — Single source of truth. Always import from here, never redefine.
 
-export type ClipDurationMode = 'short' | 'standard';
+export type ClipDurationMode = 'short' | 'standard' | 'match' | 'custom';
 export type ToneOption = 'Inspirational' | 'Assertive' | 'Playful' | 'Luxury' | 'Educational';
 
 // ── Design Config ─────────────────────────────────────────────────────────────
@@ -109,9 +109,14 @@ export interface SSEProgressEvent {
 }
 
 export const CLIP_DURATIONS = {
-  short: { min: 3, max: 5 },
+  short:    { min: 3,  max: 5  },
   standard: { min: 15, max: 30 },
+  match:    { min: 1,  max: 180 }, // match video length
+  custom:   { min: 1,  max: 180 }, // user-chosen seconds
 } as const;
+
+// Preset duration buttons shown in the UI
+export const DURATION_PRESETS = [5, 8, 10, 15, 30, 60] as const;
 
 export const OUTPUT_DIR = 'output';
 export const LOG_DIR = 'heres_whats_up';

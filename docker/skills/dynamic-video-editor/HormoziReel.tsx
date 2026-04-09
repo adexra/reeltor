@@ -78,8 +78,8 @@ export const hormoziReelSchema = z.object({
     }).optional(),
   }),
   startTime:      z.number(),
-  durationMode:   z.enum(['short', 'standard']),
-  customDuration: z.number().nullable(),
+  durationMode:   z.enum(['short', 'standard', 'custom', 'match']),
+  customDuration: z.number().nullable().default(5),
 });
 
 export type HormoziReelProps = z.infer<typeof hormoziReelSchema>;
@@ -329,6 +329,95 @@ function Scrim({ positionY }: { positionY: number }) {
   );
 }
 
+// ── Light streak overlay ──────────────────────────────────────────────────────
+
+function LightStreak({
+  style,
+  accentColor,
+  glowColor,
+  frame,
+  fps,
+}: {
+  style:       string;
+  accentColor: string;
+  glowColor:   string;
+  frame:       number;
+  fps:         number;
+}) {
+  // Streaks animate in during the first 0.5s then hold
+  const progress = Math.min(1, frame / (fps * 0.5));
+
+  if (style === 'horizontal') {
+    // Fast sweep from left to right
+    const x = interpolate(progress, [0, 1], [-10, 110], { extrapolateRight: 'clamp' });
+    return (
+      <AbsoluteFill style={{ pointerEvents: 'none' }}>
+        <div style={{
+          position:   'absolute',
+          top:        '33%',
+          left:       `${x}%`,
+          transform:  'translateX(-50%)',
+          width:      '40%',
+          height:     6,
+          background: `linear-gradient(90deg, transparent, ${glowColor}, white, ${glowColor}, transparent)`,
+          filter:     `blur(2px) drop-shadow(0 0 8px ${accentColor})`,
+          opacity:    progress < 1 ? 1 : 0.15,
+        }} />
+        <div style={{
+          position:   'absolute',
+          top:        'calc(33% + 2px)',
+          left:       `${x}%`,
+          transform:  'translateX(-50%)',
+          width:      '20%',
+          height:     2,
+          background: `linear-gradient(90deg, transparent, white, transparent)`,
+          opacity:    progress < 1 ? 0.9 : 0,
+        }} />
+      </AbsoluteFill>
+    );
+  }
+
+  if (style === 'diagonal') {
+    const x = interpolate(progress, [0, 1], [-20, 120], { extrapolateRight: 'clamp' });
+    return (
+      <AbsoluteFill style={{ pointerEvents: 'none', overflow: 'hidden' }}>
+        <div style={{
+          position:  'absolute',
+          top:       0,
+          left:      0,
+          right:     0,
+          bottom:    0,
+          background: `linear-gradient(135deg, transparent ${x - 10}%, ${glowColor} ${x}%, white ${x + 2}%, ${glowColor} ${x + 4}%, transparent ${x + 14}%)`,
+          opacity:   progress < 1 ? 0.7 : 0.08,
+        }} />
+      </AbsoluteFill>
+    );
+  }
+
+  if (style === 'burst') {
+    const scale = spring({ frame, fps, config: { damping: 20, stiffness: 120, mass: 1 }, from: 0.3, to: 1 });
+    const opacity = interpolate(frame, [0, fps * 0.3, fps * 0.8], [0, 0.8, 0.12], { extrapolateRight: 'clamp' });
+    return (
+      <AbsoluteFill style={{ pointerEvents: 'none' }}>
+        <div style={{
+          position:     'absolute',
+          top:          '30%',
+          left:         '50%',
+          transform:    `translate(-50%, -50%) scale(${scale})`,
+          width:        600,
+          height:       600,
+          borderRadius: '50%',
+          background:   `radial-gradient(circle, ${accentColor}55 0%, ${glowColor} 20%, transparent 65%)`,
+          opacity,
+          filter:       'blur(4px)',
+        }} />
+      </AbsoluteFill>
+    );
+  }
+
+  return null;
+}
+
 // ── Main composition ──────────────────────────────────────────────────────────
 
 export function HormoziReel({
@@ -385,11 +474,12 @@ export function HormoziReel({
   const positionY = positionFraction[design.textPosition] ?? 0.38;
 
   // ── Determine actual clip duration in frames ───────────────────────────────
-  // The composition is registered at MAX_DURATION_FRAMES (900) but we honour
-  // the actual job duration so renders don't over-run.
-  const clipDurationSecs = durationMode === 'short'
-    ? Math.min(5, durationInFrames / fps)    // clamp to short range
-    : Math.min(customDuration ?? 20, 30);    // cap at 30 s standard
+  // All modes now resolve to customDuration seconds. Legacy 'short'/'standard'
+  // modes are kept for backwards compatibility.
+  const clipDurationSecs =
+    durationMode === 'short'    ? Math.min(5, durationInFrames / fps) :
+    durationMode === 'standard' ? Math.min(customDuration ?? 20, 30)  :
+    /* custom / match */          Math.min(customDuration ?? 5, durationInFrames / fps);
   const clipFrames = Math.round(clipDurationSecs * fps);
 
   // ── Build per-word Sequence params from Whisper timestamps ─────────────────
@@ -425,6 +515,11 @@ export function HormoziReel({
 
       {/* ── Gradient scrim behind text ─────────────────────────────────────── */}
       <Scrim positionY={positionY} />
+
+      {/* ── Light streak overlay ───────────────────────────────────────────── */}
+      {design.lightStreak !== 'none' && (
+        <LightStreak style={design.lightStreak} accentColor={accentColor} glowColor={glowColor} frame={frame} fps={fps} />
+      )}
 
       {/* ── Caption layer ─────────────────────────────────────────────────── */}
       {hasTranscript ? (

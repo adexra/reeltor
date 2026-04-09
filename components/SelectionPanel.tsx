@@ -76,14 +76,16 @@ async function upsertUserPreferences(prefs: DesignPrefs): Promise<void> {
 
 // ── Stages ────────────────────────────────────────────────────────────────────
 
-type Stage = 'hook' | 'caption' | 'brand' | 'design';
+type Stage = 'loading_captions' | 'caption' | 'brand' | 'design';
 
 export function SelectionPanel({ result, onRenderComplete }: {
   result: GenerationResult;
   onRenderComplete: (jobId: string) => void;
 }) {
-  const [stage,        setStage]        = useState<Stage>('hook');
+  // The user already chose a hook in GeneratorPanel — skip straight to captions.
+  const [stage,        setStage]        = useState<Stage>('loading_captions');
   const [renderResult, setRenderResult] = useState<RenderResult | null>(null);
+  const [captionError, setCaptionError] = useState<string | null>(null);
   const [design,       setDesign]       = useState<DesignConfig>(() => {
     // Hydrate from localStorage on first render (client-only via lazy initializer)
     const base: DesignConfig = { ...DEFAULT_DESIGN, ...DESIGN_STUDIO_DEFAULTS };
@@ -98,10 +100,32 @@ export function SelectionPanel({ result, onRenderComplete }: {
     };
   });
 
-  function handleHookConfirmed(_hookId: string, _hookText: string, rr: RenderResult) {
-    setRenderResult(rr);
-    setStage('caption');
-  }
+  // Auto-fetch captions using the hook already chosen in GeneratorPanel
+  useEffect(() => {
+    const selectedHook = result.hooks.find((h) => h.id === result.selectedHookId) ?? result.hooks[0];
+    if (!selectedHook) { setCaptionError('No hook found.'); return; }
+
+    fetch('/api/render', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        phase:            'captions',
+        jobId:            result.jobId,
+        selectedHookId:   selectedHook.id,
+        selectedHookText: selectedHook.text,
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.error) throw new Error(data.error);
+        setRenderResult(data.renderResult as RenderResult);
+        setStage('caption');
+      })
+      .catch((err) => {
+        setCaptionError(err instanceof Error ? err.message : 'Failed to generate captions');
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleCaptionConfirmed(rr: RenderResult) {
     setRenderResult(rr);
@@ -119,6 +143,27 @@ export function SelectionPanel({ result, onRenderComplete }: {
     };
     saveDesignPrefs(prefs);
     setStage('design');
+  }
+
+  if (stage === 'loading_captions') {
+    return (
+      <div className="flex flex-col items-start gap-4 max-w-md">
+        <div className="flex items-center gap-3">
+          <SpinnerIcon />
+          <span className="text-[#E8FF47] font-mono text-sm uppercase tracking-widest">Writing captions…</span>
+        </div>
+        <p className="text-[#5A6478] text-sm">
+          Hook: <span className="text-[#EEF2F7] font-mono">
+            "{(result.hooks.find((h) => h.id === result.selectedHookId) ?? result.hooks[0])?.text}"
+          </span>
+        </p>
+        {captionError && (
+          <p className="text-xs text-red-400 font-mono border border-red-900/40 bg-red-950/20 px-3 py-2 rounded">
+            {captionError}
+          </p>
+        )}
+      </div>
+    );
   }
 
   if (stage === 'design' && renderResult) {
@@ -154,89 +199,8 @@ export function SelectionPanel({ result, onRenderComplete }: {
     );
   }
 
-  return (
-    <HookStage
-      result={result}
-      onHookConfirmed={handleHookConfirmed}
-    />
-  );
-}
-
-// ── Hook Stage — Step 1 ───────────────────────────────────────────────────────
-
-interface HookStageProps {
-  result: GenerationResult;
-  onHookConfirmed: (hookId: string, hookText: string, renderResult: RenderResult) => void;
-}
-
-function HookStage({ result, onHookConfirmed }: HookStageProps) {
-  const [selectedHookId, setSelectedHookId] = useState(result.selectedHookId);
-  const [isLoading,      setIsLoading]      = useState(false);
-  const [error,          setError]          = useState<string | null>(null);
-
-  const selectedHook = result.hooks.find((h) => h.id === selectedHookId) ?? result.hooks[0];
-
-  const handleConfirm = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/render', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          phase:            'captions',
-          jobId:            result.jobId,
-          selectedHookId:   selectedHook.id,
-          selectedHookText: selectedHook.text,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? `Failed (${res.status})`);
-      onHookConfirmed(selectedHook.id, selectedHook.text, data.renderResult as RenderResult);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate captions');
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="flex flex-col gap-8 max-w-2xl w-full">
-      <div>
-        <StepLabel step={1} total={4} color="#E8FF47" />
-        <h2 className="text-2xl font-extrabold text-[#EEF2F7] leading-none" style={{ letterSpacing: '-0.03em' }}>
-          Choose Your Hook
-        </h2>
-        <p className="text-[#5A6478] text-sm mt-2">
-          Pick the hook that will appear on your reel. Captions are written for the hook you choose.
-        </p>
-      </div>
-
-      <section className="flex flex-col gap-3">
-        {result.hooks.map((hook) => (
-          <HookCard
-            key={hook.id}
-            hook={hook}
-            selected={selectedHookId === hook.id}
-            onSelect={() => setSelectedHookId(hook.id)}
-          />
-        ))}
-      </section>
-
-      {error && <ErrorBox message={error} />}
-
-      <button
-        onClick={handleConfirm}
-        disabled={isLoading}
-        className={`w-full py-3.5 rounded font-mono text-sm tracking-[0.08em] uppercase transition-all duration-200
-          ${isLoading
-            ? 'bg-[#0D0F12] text-[#353D4A] border border-[#1E2329] cursor-not-allowed'
-            : 'bg-[#E8FF47] text-[#07080A] font-bold hover:bg-[#F2FF70] active:scale-[0.99]'
-          }`}
-      >
-        {isLoading ? <LoadingLabel label="Writing captions for this hook…" /> : 'Use this hook → write captions'}
-      </button>
-    </div>
-  );
+  // loading_captions is handled above — this is a fallback
+  return null;
 }
 
 // ── Caption Stage — Step 2 ────────────────────────────────────────────────────
@@ -256,7 +220,7 @@ function CaptionStage({
   return (
     <div className="flex flex-col gap-8 max-w-2xl w-full">
       <div>
-        <StepLabel step={2} total={4} color="#3B82F6" />
+        <StepLabel step={1} total={3} color="#3B82F6" />
         <h2 className="text-2xl font-extrabold text-[#EEF2F7] leading-none" style={{ letterSpacing: '-0.03em' }}>
           Choose Your Caption
         </h2>
@@ -293,7 +257,6 @@ function CaptionStage({
       </section>
 
       <div className="flex gap-3">
-        <BackButton onClick={onBack} />
         <button
           onClick={() => onCaptionConfirmed({ ...renderResult, selectedCaptionId })}
           className="flex-1 py-3.5 bg-[#E8FF47] text-[#07080A] font-bold font-mono text-sm rounded hover:bg-[#F2FF70] active:scale-[0.99] transition-all uppercase tracking-[0.08em]"
@@ -323,7 +286,7 @@ function BrandStage({
   return (
     <div className="flex flex-col gap-6 w-full max-w-5xl">
       <div>
-        <StepLabel step={3} total={4} color="#39FF14" />
+        <StepLabel step={2} total={3} color="#39FF14" />
         <h2 className="text-2xl font-extrabold text-[#EEF2F7] leading-none" style={{ letterSpacing: '-0.03em' }}>
           Brand Your Reel
         </h2>

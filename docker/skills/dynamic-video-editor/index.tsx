@@ -31,8 +31,8 @@ const DEFAULT_PROPS: HormoziReelProps = {
     showCTA:      true,
   },
   startTime:      0,
-  durationMode:   'short',
-  customDuration: null,
+  durationMode:   'custom',
+  customDuration: 5,
 };
 
 // 1080×1920 @ 30 fps — standard vertical Reel format

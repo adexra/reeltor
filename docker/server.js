@@ -177,8 +177,8 @@ async function runRender(jobId) {
       whisperTranscript: job.whisper_transcript ?? [],
       design,
       startTime:    Number(job.start_time   ?? 0),
-      durationMode: job.duration_mode ?? 'short',
-      customDuration: job.custom_duration ?? null,
+      durationMode: job.duration_mode ?? 'custom',
+      customDuration: job.custom_duration ?? 5,
     };
 
     // ── 5. Bundle + select composition ──────────────────────────────────────

@@ -364,7 +364,7 @@ export function DesignEditor({ renderResult, onConfirm, onBack }: Props) {
           <div className="flex items-center gap-2 mb-1">
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: PALETTES.find(p => p.id === design.palette)?.hex }} />
             <span className="text-[10px] font-mono uppercase tracking-widest" style={{ color: PALETTES.find(p => p.id === design.palette)?.hex }}>
-              Step 3 of 3
+              Step 3 of 3 — Design
             </span>
           </div>
           <h2
