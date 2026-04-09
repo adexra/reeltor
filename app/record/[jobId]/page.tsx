@@ -224,6 +224,13 @@ export default function RecordPage({ params }: { params: Promise<{ jobId: string
   async function startRecording() {
     if (!job || !videoRef.current || !containerRef.current) return;
 
+    // canvas.captureStream() is not supported on iOS Safari
+    const testCanvas = document.createElement('canvas');
+    if (typeof (testCanvas as HTMLCanvasElement & { captureStream?: () => MediaStream }).captureStream !== 'function') {
+      setError('Browser recording is not supported on this device. Please open this page on a desktop browser (Chrome or Firefox).');
+      return;
+    }
+
     setPhase('recording');
     setProgress(0);
     chunksRef.current = [];
@@ -336,7 +343,15 @@ export default function RecordPage({ params }: { params: Promise<{ jobId: string
     animId = requestAnimationFrame(drawFrame);
 
     const stream   = canvas.captureStream(30);
-    const mimeType = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm';
+    // Prefer H.264 codec (works on iOS Safari for playback even in webm container).
+    // Fall back through options to whatever the browser supports.
+    const MIME_CANDIDATES = [
+      'video/mp4;codecs=avc1',
+      'video/webm;codecs=h264',
+      'video/webm;codecs=vp9',
+      'video/webm',
+    ];
+    const mimeType = MIME_CANDIDATES.find((m) => MediaRecorder.isTypeSupported(m)) ?? 'video/webm';
     const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 });
     recorderRef.current = recorder;
 
@@ -349,9 +364,12 @@ export default function RecordPage({ params }: { params: Promise<{ jobId: string
       const blob = new Blob(chunksRef.current, { type: mimeType });
       setPhase('uploading');
 
+      // Determine extension: mp4 if H.264 in mp4 container, otherwise webm
+      const blobExt = mimeType.includes('mp4') ? 'mp4' : 'webm';
+
       const fd = new FormData();
       fd.append('jobId', jobId);
-      fd.append('video', blob, `reel.${mimeType.includes('mp4') ? 'mp4' : 'webm'}`);
+      fd.append('video', blob, `reel.${blobExt}`);
 
       try {
         const res = await fetch('/api/render/browser-complete', { method: 'POST', body: fd });

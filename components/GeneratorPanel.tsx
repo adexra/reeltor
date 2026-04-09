@@ -16,6 +16,15 @@ interface Props {
   onPhase1Complete: (result: GenerationResult) => void;
 }
 
+function PencilIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+    </svg>
+  );
+}
+
 // ── Canvas helpers ────────────────────────────────────────────────────────────
 
 function wrapHookText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
@@ -346,23 +355,41 @@ function HookCards({
   hooks,
   selectedId,
   onSelect,
+  onEdit,
 }: {
   hooks:      HookOption[];
   selectedId: string;
   onSelect:   (hook: HookOption) => void;
+  onEdit:     (id: string, newText: string) => void;
 }) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText,  setEditText]  = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  function startEdit(hook: HookOption, e: React.MouseEvent) {
+    e.stopPropagation();
+    setEditingId(hook.id);
+    setEditText(hook.text);
+    setTimeout(() => textareaRef.current?.focus(), 0);
+  }
+
+  function commitEdit(id: string) {
+    const trimmed = editText.trim();
+    if (trimmed) onEdit(id, trimmed);
+    setEditingId(null);
+  }
+
   return (
     <div className="flex flex-col gap-2">
       <span className="text-[10px] font-mono text-[#5A6478] uppercase tracking-[0.12em]">
-        Generated Hooks — click to preview
+        Generated Hooks — click to preview, pencil to edit
       </span>
       {hooks.map((hook) => {
-        const active = hook.id === selectedId;
+        const active  = hook.id === selectedId;
+        const editing = editingId === hook.id;
         return (
-          <button
+          <div
             key={hook.id}
-            type="button"
-            onClick={() => onSelect(hook)}
             className="w-full text-left p-3.5 rounded border transition-all duration-150"
             style={{
               borderColor: active ? '#E8FF47' : '#1E2329',
@@ -372,7 +399,9 @@ function HookCards({
           >
             <div className="flex items-start gap-3">
               {/* Radio dot */}
-              <div
+              <button
+                type="button"
+                onClick={() => { if (!editing) onSelect(hook); }}
                 className="mt-1 w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors"
                 style={{
                   borderColor: active ? '#E8FF47' : '#2A3140',
@@ -384,11 +413,45 @@ function HookCards({
                     <path d="M1.5 4L3 5.5L6.5 2" stroke="#07080A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 )}
-              </div>
+              </button>
 
               <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                <span className="text-sm text-[#EEF2F7] font-mono leading-snug">{hook.text}</span>
-                <div className="flex flex-wrap gap-1.5">
+                {editing ? (
+                  <div className="flex flex-col gap-2">
+                    <textarea
+                      ref={textareaRef}
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit(hook.id); }
+                        if (e.key === 'Escape') setEditingId(null);
+                      }}
+                      rows={2}
+                      className="w-full bg-[#07080A] border border-[#E8FF4740] rounded px-2 py-1.5 text-sm text-[#EEF2F7] font-mono resize-none outline-none focus:border-[#E8FF47]"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => commitEdit(hook.id)}
+                        className="px-3 py-1 bg-[#E8FF47] text-[#07080A] font-bold font-mono text-[10px] rounded uppercase tracking-wide"
+                      >
+                        ✓ Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(null)}
+                        className="px-3 py-1 border border-[#1E2329] text-[#5A6478] font-mono text-[10px] rounded uppercase tracking-wide"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => onSelect(hook)} className="text-left w-full">
+                    <span className="text-sm text-[#EEF2F7] font-mono leading-snug">{hook.text}</span>
+                  </button>
+                )}
+                <div className="flex flex-wrap gap-1.5 items-center">
                   <ScoreBadge score={hook.score} />
                   {hook.isRecommended && (
                     <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-[#E8FF4740] text-[#E8FF47] bg-[#E8FF4710]">
@@ -396,17 +459,23 @@ function HookCards({
                     </span>
                   )}
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-[#1E2329] text-[#5A6478] bg-[#0D0F12]">
-                    {hook.wordCount}w
+                    {hook.text.trim().split(/\s+/).length}w
                   </span>
-                  {!hook.spellingOk && (
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-amber-900/50 text-amber-400 bg-amber-950/30">
-                      ⚠ Corrected
-                    </span>
+                  {/* Pencil edit button */}
+                  {!editing && (
+                    <button
+                      type="button"
+                      onClick={(e) => startEdit(hook, e)}
+                      className="ml-auto p-1 text-[#353D4A] hover:text-[#E8FF47] transition-colors"
+                      title="Edit hook text"
+                    >
+                      <PencilIcon />
+                    </button>
                   )}
                 </div>
               </div>
             </div>
-          </button>
+          </div>
         );
       })}
     </div>
@@ -769,6 +838,11 @@ export function GeneratorPanel({ context, onPhase1Complete }: Props) {
               hooks={hooks}
               selectedId={selectedHookId}
               onSelect={handleSelectHook}
+              onEdit={(id, newText) =>
+                setHooks((prev) =>
+                  prev.map((h) => (h.id === id ? { ...h, text: newText } : h)),
+                )
+              }
             />
             {pendingResult && selectedHookId && (
               <button

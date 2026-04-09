@@ -82,11 +82,11 @@ export default function MobileHandoff({ params }: { params: Promise<{ jobId: str
         <span className="text-[#EEF2F7] text-sm font-bold font-mono tracking-tight">Reelator</span>
       </div>
 
-      {/* Video */}
+      {/* Video — proxied through Next.js for correct content-type on iOS Safari */}
       <div className="w-full max-w-xs rounded-2xl overflow-hidden border border-[#1E2329]">
         {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
         <video
-          src={data.videoUrl}
+          src={`/api/library/${jobId}/stream`}
           controls
           playsInline
           className="w-full"
