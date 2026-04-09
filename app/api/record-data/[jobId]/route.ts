@@ -39,7 +39,7 @@ export async function GET(
 
   // Resolve design — prefer full design_config, fall back to individual columns
   const baseDesign: DesignConfig = {
-    palette:      job.palette      ?? 'neon-yellow',
+    palette:      (job.palette ?? 'neon-yellow') as DesignConfig['palette'],
     font:         (job.font        ?? 'bebas')      as DesignConfig['font'],
     animation:    (job.animation   ?? 'none')       as DesignConfig['animation'],
     lightStreak:  (job.light_streak ?? 'none')      as DesignConfig['lightStreak'],
