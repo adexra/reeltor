@@ -78,7 +78,7 @@ export interface ReelJobRow {
   // Request fields
   video_idea:           string;
   start_time:           number;
-  duration_mode:        'short' | 'standard';
+  duration_mode:        'short' | 'standard' | 'custom' | 'match';
   custom_duration:      number | null;
   business_name:        string;
   target_audience:      string;
@@ -143,7 +143,8 @@ export async function createJob(
 
       video_idea:      request.videoIdea,
       start_time:      request.startTime,
-      duration_mode:   request.durationMode,
+      // DB column only accepts 'short'|'standard' — map new modes to 'standard'
+      duration_mode:   (request.durationMode === 'short') ? 'short' : 'standard',
       custom_duration: request.customDuration ?? null,
       business_name:   request.context.businessName,
       target_audience: request.context.targetAudience,
