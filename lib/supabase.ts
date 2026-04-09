@@ -92,6 +92,7 @@ export interface ReelJobRow {
   light_streak:         string;
   text_position:        string;
   show_cta:             boolean;
+  design_config:        DesignConfig | null;  // full DesignConfig JSON (superset of above columns)
 
   // Phase 1
   hooks:                GenerationResult['hooks'] | null;

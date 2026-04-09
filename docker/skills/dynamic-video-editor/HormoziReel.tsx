@@ -150,8 +150,10 @@ function AnimatedWord({
       })
     : 1.0;
 
-  // Opacity: active = full, past = dimmed, future = 0 (hidden)
-  const opacity = isActive ? 1 : isPast ? 0.35 : 0;
+  // Opacity: active = full, past/future = hidden.
+  // All word elements are rendered simultaneously as position:absolute layers;
+  // showing past words even dimmed causes them to stack and look terrible.
+  const opacity = isActive ? 1 : 0;
 
   // Active word gets accent colour + glow; past words turn white/dimmed
   const color     = isActive ? accentColor : '#FFFFFF';
@@ -223,7 +225,14 @@ function StaticHook({
     opacity = interpolate(frame, [0, 8], [0, 1], { extrapolateRight: 'clamp' });
   }
 
-  const lines = text.toUpperCase().split(' ');
+  // Split into natural chunks of 2–3 words per line for Hormozi-style layout.
+  // Short hooks (1–2 words) stay on one line; longer ones get chunked at 3 words.
+  const words = text.toUpperCase().split(/\s+/).filter(Boolean);
+  const chunkSize = words.length <= 2 ? words.length : 3;
+  const lines: string[] = [];
+  for (let i = 0; i < words.length; i += chunkSize) {
+    lines.push(words.slice(i, i + chunkSize).join(' '));
+  }
 
   return (
     <div
@@ -237,8 +246,8 @@ function StaticHook({
         display:          'flex',
         flexDirection:    'column',
         alignItems:       'center',
-        gap:              4,
-        paddingInline:    80,
+        gap:              8,
+        paddingInline:    64,
         pointerEvents:    'none',
       }}
     >
@@ -249,7 +258,7 @@ function StaticHook({
             fontFamily,
             fontSize:         hookFontPx,
             fontWeight:       900,
-            lineHeight:       1.0,
+            lineHeight:       1.05,
             letterSpacing:    '0.02em',
             textTransform:    'uppercase',
             color:            accentColor,
@@ -258,6 +267,7 @@ function StaticHook({
             paintOrder:       'stroke fill',
             textAlign:        'center',
             userSelect:       'none',
+            wordBreak:        'keep-all',
           }}
         >
           {line}

@@ -201,6 +201,7 @@ async function triggerAzureRender(
       light_streak:  design.lightStreak,
       text_position: design.textPosition,
       show_cta:      design.showCTA,
+      design_config: design,  // full config — render server reads this
     }),
   });
 

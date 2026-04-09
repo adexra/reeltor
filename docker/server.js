@@ -153,6 +153,21 @@ async function runRender(jobId) {
     await setJobStatus(jobId, 'processing', { current_step: 'rendering', progress: 20 });
 
     // ── 4. Build inputProps for the Remotion composition ────────────────────
+    // design_config stores the full DesignConfig (including paletteColors,
+    // handle, logoUrl, hookFontSize, baseFontSize, etc.).
+    // Fall back to individual columns for legacy jobs that predate design_config.
+    const baseDesign = {
+      palette:      job.palette      ?? 'neon-yellow',
+      font:         job.font         ?? 'bebas',
+      animation:    job.animation    ?? 'none',
+      lightStreak:  job.light_streak ?? 'none',
+      textPosition: job.text_position ?? 'center',
+      showCTA:      job.show_cta     ?? false,
+    };
+    const design = job.design_config
+      ? { ...baseDesign, ...job.design_config }
+      : baseDesign;
+
     const inputProps = {
       jobId,
       rawVideoPath:     rawVideoTmp,
@@ -160,14 +175,7 @@ async function runRender(jobId) {
       captionText:      job.selected_caption_text ?? '',
       hashtags:         job.hashtags ?? [],
       whisperTranscript: job.whisper_transcript ?? [],
-      design: {
-        palette:      job.palette      ?? 'neon-yellow',
-        font:         job.font         ?? 'bebas',
-        animation:    job.animation    ?? 'none',
-        lightStreak:  job.light_streak ?? 'none',
-        textPosition: job.text_position ?? 'center',
-        showCTA:      job.show_cta     ?? false,
-      },
+      design,
       startTime:    Number(job.start_time   ?? 0),
       durationMode: job.duration_mode ?? 'short',
       customDuration: job.custom_duration ?? null,

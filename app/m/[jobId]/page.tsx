@@ -113,8 +113,8 @@ export default function MobileHandoff({ params }: { params: Promise<{ jobId: str
           {copied ? '✓ Copied!' : 'Copy Caption + Hashtags'}
         </button>
         <a
-          href={data.videoUrl}
-          download
+          href={`/api/library/${jobId}/download`}
+          download="reel.mp4"
           className="w-full py-3.5 border border-[#1E2329] text-[#5A6478] font-mono text-sm rounded-lg hover:border-[#2A3140] hover:text-[#EEF2F7] transition-colors text-center uppercase tracking-wide"
         >
           Download Video
