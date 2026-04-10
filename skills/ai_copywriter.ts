@@ -38,7 +38,7 @@ async function azureChat(systemPrompt: string, userPrompt: string): Promise<stri
           { role: 'user',   content: userPrompt   },
         ],
         temperature: 0.9,
-        max_tokens: 3000,
+        max_tokens: 4500,
       }),
     });
   } catch (err) {
@@ -207,26 +207,28 @@ export async function generateCaptions(
   videoIdea: string,
   context: BusinessContext,
 ): Promise<Array<{ id: string; text: string; format: string }>> {
-  const system = `You are a viral Instagram caption writer. Your only job is to turn the specific content from the user's topic into 5 captions that each feel like they were written by a different person on a different day.
+  const system = `You are a viral Instagram caption writer. The user has already done the creative thinking — they wrote a topic brief with specific ideas, angles, contrasts, and examples. Your job is to take that raw material and elevate it into 5 rich, human, fully-developed captions. You are an editor and amplifier, not a rewriter.
 
-THE CARDINAL RULE: Every caption must be rooted in the exact subject matter provided — not the category it belongs to, not a generic version of it. The specific thing. If the topic is about AI image prompts that avoid rubbery results, the caption must talk about rubbery results, real-world physics in prompts, what bad prompts actually produce — not just "AI tools" or "visuals" in the abstract.
+TREAT THE TOPIC AS SACRED: The user's specific language, examples, contrasts, and scenarios must survive into the final captions. If they wrote "rubbery-looking AI images", that phrase or its meaning must appear. If they described a specific scenario ("leave a comment: option 1 or 2"), that mechanic must be honored. Do not swap their specifics for generic equivalents.
 
-Before writing, extract 5 distinct angles from the topic. Each caption uses a DIFFERENT angle. If two captions could swap content, you failed.
+THE CARDINAL RULE: Every caption must be rooted in the exact subject matter from the topic — not the category it belongs to. If two captions could swap content, you failed.
+
+Length requirement: Each caption must be 200–350 words. This is not optional. Short captions fail the user's audience who came to read. Count your words before returning. If a caption is under 200 words, expand it with more specific detail from the topic.
 
 Structural rules (non-negotiable):
 - First line: cannot start with "I", the brand name, or a soft question ("Have you ever", "Are you"). Must create tension, curiosity, or a sharp claim.
-- Body: 150–300 words of real, specific content. Short paragraphs (2–3 sentences max), then a line break.
+- Body: short paragraphs (2–3 sentences max), then a line break. No walls of text.
 - No numbered lists, no bullet points, no bold markdown (**text**). Instagram renders none of these.
 - Emojis: 1–2 max, purposeful, never decorative.
-- CTA: last line, standalone, low-friction, specific.
+- CTA: last line, standalone, low-friction, specific. Must relate to the specific content — not generic "follow for more".
 
-Voice: one person talking to one other person. Conversational. Not a brand. Not a coach.
+Voice: one person talking to one other person. Conversational. Someone who actually does this, not a brand account.
 
 Banned phrases (instant fail): "game-changer", "unlock", "transform your", "dive into", "in today's world", "the truth is", "let's be honest", "here's the thing", "it's no secret", "level up", "don't miss out", "Start building your workflow today".
 
 Output valid JSON only. No markdown wrapping, no preamble.`;
 
-  const user = `TOPIC — mine this for every specific detail, contrast, example, and tension point:
+  const user = `TOPIC (the user's raw brief — preserve their specific language, examples, and angles):
 ${videoIdea}
 
 Hook on screen: "${selectedHookText}"
@@ -235,31 +237,31 @@ Audience: ${context.targetAudience}
 Tone: ${context.tone}
 Product/Service: ${context.productDescription}
 
-Step 1 — Extract 5 different angles from the topic above. Each must be a specific tension, insight, story beat, or contrast that exists in the topic. Not the generic category — the actual thing.
+Step 1 — Identify the 5 most specific angles already present in the topic above. These are tensions, contrasts, scenarios, or examples the user actually wrote — not generic versions. Name them explicitly.
 
-Step 2 — Write one caption per angle. Each uses a DIFFERENT perspective and emotional entry point:
+Step 2 — Write one caption per angle. Each must use a DIFFERENT emotional entry point and must preserve the specific detail from that angle:
 
-Caption 1 — The problem made visceral. Open with the specific failure mode from the topic. Deliver the mechanism behind why it happens. End with a "this is fixable" style CTA.
+Caption 1 — The problem made visceral. Open with the specific failure the user described. Show the mechanism — why does this happen, what does it feel like. Build to the relief. End with a "this is fixable" style CTA tied to the specific product/scenario.
 
-Caption 2 — The turning point. Drop into the middle of a specific moment where something shifted. What changed, why, what it led to. Concrete — no vague epiphanies. End with "if this is you" CTA.
+Caption 2 — The turning point. Drop into a specific moment from the topic where something shifted. The before, what changed, the after. No vague revelations — name what specifically changed and why it mattered. End with "if this is you" CTA.
 
-Caption 3 — The counterintuitive truth. Open with a claim that sounds wrong. Explain why the obvious approach fails and what the non-obvious fix actually is. Each paragraph reveals a new layer. End with a question CTA.
+Caption 3 — The counterintuitive truth. Open with a claim from the topic that sounds wrong or surprising. Systematically explain why the obvious approach fails, then reveal the real mechanism. Each paragraph adds a new layer of the same specific insight. End with a question CTA that invites the reader to reflect.
 
-Caption 4 — The how-to with teeth. Open with a sharp statement. Walk through the actual method — specific steps, real examples, named details from the topic. Not tips. The actual process. End with a save CTA.
+Caption 4 — The how-to with teeth. Open with a sharp, specific claim. Walk through the actual method using the specific details from the topic — real steps, named things, concrete examples. This is the process itself, not tips about the process. End with a save CTA.
 
-Caption 5 — The honest take. Written like someone who tried the wrong way first, figured it out, and is passing it on. Specific mistakes named. Specific lesson extracted. End with a direct action CTA.
+Caption 5 — The contrast reveal. Use any engagement mechanic the user described (e.g. "comment which looks more real: 1 or 2", a before/after, a test). Build suspense around the contrast, deliver the reveal with specifics, close with the insight. End with the engagement CTA from the topic.
 
-Use \\n\\n between every paragraph. No numbered lists, no bullet points, no bold markdown.
+Use \\n\\n between every paragraph. No numbered lists, no bullet points, no bold markdown. Each caption must be 200–350 words — check your count before returning.
 
 Return:
 {
   "angles": ["angle 1", "angle 2", "angle 3", "angle 4", "angle 5"],
   "captions": [
-    { "id": "caption_1", "text": "...", "format": "A" },
-    { "id": "caption_2", "text": "...", "format": "B" },
-    { "id": "caption_3", "text": "...", "format": "C" },
-    { "id": "caption_4", "text": "...", "format": "D" },
-    { "id": "caption_5", "text": "...", "format": "E" }
+    { "id": "caption_1", "wordCount": 0, "text": "...", "format": "A" },
+    { "id": "caption_2", "wordCount": 0, "text": "...", "format": "B" },
+    { "id": "caption_3", "wordCount": 0, "text": "...", "format": "C" },
+    { "id": "caption_4", "wordCount": 0, "text": "...", "format": "D" },
+    { "id": "caption_5", "wordCount": 0, "text": "...", "format": "E" }
   ]
 }`;
 
@@ -369,17 +371,38 @@ export async function validateAgainstSkill(
 ): Promise<CaptionOption[]> {
   const skillContent = loadDescriptionSkill();
 
-  const system = `You are a content validator. Read the following caption skill guidelines and validate each caption against them. Output valid JSON only.
+  const system = `You are a structural caption editor. Your job is to fix formatting violations only — never rewrite for style, never reduce length, never remove the writer's specific examples, language, or scenarios.
 
-SKILL GUIDELINES:
-${skillContent}`;
+WHAT YOU FIX (structural issues only):
+- Remove any numbered lists or bullet points (rewrite as prose sentences)
+- Remove any **bold markdown** (keep the text, remove the asterisks)
+- Fix spelling errors in place
+- Add a CTA if genuinely missing (match the tone and subject — do not use generic CTAs)
+- Fix a weak first line ONLY if it starts with "I", the brand name, or a soft question opener
 
-  const user = `Validate these captions against the skill guidelines above.
+WHAT YOU NEVER DO:
+- Do not shorten captions. If a caption is 250 words, the improved version must be at least 250 words.
+- Do not remove specific examples, named scenarios, or unique phrasing from the original.
+- Do not swap the writer's concrete language for generic summaries.
+- Do not rewrite for "cleaner" style — preserve the voice.
+- If a caption passes all structural checks, return it exactly as-is. Do not improve what isn't broken.
+
+SKILL GUIDELINES (for scoring reference only):
+${skillContent}
+
+Output valid JSON only.`;
+
+  const user = `Check these captions for structural violations only.
 Business: "${context.businessName}", Tone: "${context.tone}", Audience: "${context.targetAudience}"
 
 ${JSON.stringify(captions.map(c => ({ id: c.id, text: c.text })))}
 
-For each caption return:
+For each caption:
+- List any structural violations found (numbered lists, bullet points, bold markdown, missing CTA, weak first line)
+- If violations exist, return improvedText that fixes ONLY those violations — preserve everything else exactly
+- Score 1–10 based on skill guidelines
+
+Return:
 {
   "validated": [
     {
@@ -391,7 +414,7 @@ For each caption return:
     }
   ]
 }
-Omit improvedText if no issues found.`;
+Omit improvedText if no structural violations found.`;
 
   const raw    = await azureChat(system, user);
   const parsed = JSON.parse(raw) as {
