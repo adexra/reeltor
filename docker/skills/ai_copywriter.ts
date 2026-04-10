@@ -265,36 +265,35 @@ export async function generateCaptions(
   context: BusinessContext,
   brief?: DraftBrief,
 ): Promise<Array<{ id: string; text: string; format: string }>> {
-  const system = `You are a viral Instagram caption writer and editor. The creator has already done the creative work — they wrote a draft with specific ideas, examples, scenarios, and language. Your job is to take those exact ingredients and develop them into 5 rich, fully-written captions. You are a baker given a recipe — not someone who invents a new recipe when handed one.
+  const system = `You are an amplifier and editor, not a creative writer. The creator has given you their raw notes. Your only job is to take exactly what they wrote and develop it into 5 polished captions — each a different stylistic presentation of the same facts, not a different story.
 
-RULE 1 — USE THEIR INGREDIENTS: Every specific example, scenario, contrast, engagement mechanic, and key phrase from the brief must appear in at least one caption. If they wrote "leave a comment: option 1 or 2", that exact mechanic must be in a caption. If they named a specific thing ("rubbery-looking AI images", a real outcome, a product feature), it must appear — not a generic equivalent.
+ZERO FACTUAL DEVIATION: Do not invent steps, examples, or concepts that are not in the creator's notes. Do not change their specific language into generic equivalents. If they wrote "rubbery-looking AI images", those words appear. If they wrote "leave a comment: option 1 or 2", that mechanic appears. Their facts are locked. Only the presentation style changes across the 5 options.
 
-RULE 2 — ONE BRIEF, FIVE ANGLES: Write each caption from a different emotional angle. Each one should feel like it was written for a different moment in the reader's journey — but all are made from the same ingredients.
-
-RULE 3 — LENGTH: Each caption must be 150–350 words. Count before returning. Under 150 = expand with more from the brief. You have room — use it.
+THE 5 OPTIONS ARE STYLISTIC VARIATIONS, NOT NEW STORIES:
+Option A — Direct and punchy. Same facts, written tight. Short sentences. No fat.
+Option B — Story-driven. Wrap the creator's facts inside a relatable scenario that makes the reader feel seen — but every detail comes from the notes.
+Option C — Step-by-step breakdown. Present the creator's content as a clear sequence written in prose (no lists, no numbers). Each paragraph = one step or idea from the notes.
+Option D — Conversational and casual. Same facts, written like a text to a friend. Relaxed voice, full content.
+Option E — Built around the engagement mechanic. If the creator described a poll, comparison, challenge, or CTA mechanic — this caption builds the whole structure around it. If no mechanic exists, write the most skimmable version with clear short paragraphs.
 
 Structural rules (non-negotiable):
-- First line: cannot start with "I", the brand name, or a soft question. Must create tension or a sharp claim.
-- Body: short paragraphs, 2–3 sentences max, then a line break.
-- No numbered lists, no bullet points, no bold markdown. Instagram renders none of these.
+- First line: cannot start with "I", the brand name, or a soft question ("Have you ever", "Are you"). Must create tension or a sharp claim using the creator's own content.
+- Body: short paragraphs, 2–3 sentences max, then a line break. No walls of text.
+- No numbered lists, no bullet points, no bold markdown (**text**). Instagram renders none of these.
 - Emojis: 1–2 max, purposeful only.
-- CTA: last line, standalone, specific to the content.
-
-Voice: one person talking directly to one other person.
+- CTA: last line, standalone, specific — uses the engagement mechanic they described if one exists.
+- Length: 150–350 words each. Count before returning. Under 150 = you removed too much — add it back.
 
 Banned phrases: "game-changer", "unlock", "transform your", "dive into", "in today's world", "the truth is", "let's be honest", "here's the thing", "it's no secret", "level up", "don't miss out".
 
 Output valid JSON only. No markdown wrapping, no preamble.`;
 
-  const briefSection = brief ? `
-STRUCTURED BRIEF (these are the creator's exact ingredients — build from these):
+  const briefSection = brief ? `CREATOR'S BRIEF (structured from their exact notes — these are your only ingredients):
 Core claim: ${brief.coreClaim}
-Specific examples: ${brief.specificExamples.join(' | ')}
-Tensions/problems described: ${brief.tensions.join(' | ')}
-Engagement mechanics they wrote: ${brief.engagementMechanics.join(' | ')}
-Key phrases to preserve: ${brief.keyPhrases.join(' | ')}
-Suggested angles: ${brief.suggestedAngles.join(' | ')}
-` : `CREATOR'S DRAFT:\n${videoIdea}`;
+Specific examples they named: ${brief.specificExamples.join(' | ')}
+Problems/tensions they described: ${brief.tensions.join(' | ')}
+Engagement mechanics they wrote: ${brief.engagementMechanics.length > 0 ? brief.engagementMechanics.join(' | ') : 'none specified'}
+Key phrases to preserve verbatim: ${brief.keyPhrases.join(' | ')}` : `CREATOR'S DRAFT:\n${videoIdea}`;
 
   const user = `${briefSection}
 
@@ -304,17 +303,7 @@ Audience: ${context.targetAudience}
 Tone: ${context.tone}
 Product/Service: ${context.productDescription}
 
-Write 5 captions. Each uses a DIFFERENT emotional entry point but all draw from the same brief above:
-
-Caption 1 — The problem made visceral. Open with the specific failure or frustration from the brief. Show why it happens and what it feels like. Build to the relief. End with a "this is fixable" CTA tied to the specific product or scenario.
-
-Caption 2 — The turning point. Drop into a specific before/after moment from the brief. Name what specifically changed and why it mattered. No vague revelations. End with "if this is you" CTA.
-
-Caption 3 — The counterintuitive truth. Open with a surprising claim from the brief. Explain why the obvious approach fails, then reveal the real mechanism layer by layer. End with a question CTA.
-
-Caption 4 — The how-to with teeth. Open with a sharp, specific claim. Walk through the actual method — real steps, named things, concrete examples from the brief. Not tips about the process. The process itself. End with a save CTA.
-
-Caption 5 — The contrast reveal. Built around any engagement mechanic the creator wrote (poll, before/after, 1 or 2, test). Build suspense, deliver the reveal with specifics from the brief, close with the engagement CTA they described.
+Write 5 captions. All 5 use the exact same facts from the brief above. Only the presentation style changes. Do not invent new content — amplify what is already there.
 
 Use \\n\\n between every paragraph. No numbered lists, no bullet points, no bold markdown. Each caption 150–350 words.
 
