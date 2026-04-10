@@ -182,10 +182,11 @@ function HookOverlay({ hookText, design }: { hookText: string; design: DesignCon
 export default function RecordPage({ params }: { params: Promise<{ jobId: string }> }) {
   const { jobId } = use(params);
 
-  const [job,      setJob]      = useState<JobInfo | null>(null);
-  const [error,    setError]    = useState<string | null>(null);
-  const [phase,    setPhase]    = useState<'loading' | 'ready' | 'recording' | 'uploading' | 'done'>('loading');
-  const [progress, setProgress] = useState(0); // 0–100 during recording
+  const [job,         setJob]         = useState<JobInfo | null>(null);
+  const [error,       setError]       = useState<string | null>(null);
+  const [phase,       setPhase]       = useState<'loading' | 'ready' | 'recording' | 'uploading' | 'done'>('loading');
+  const [progress,    setProgress]    = useState(0); // 0–100 during recording
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
 
   const videoRef    = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -342,27 +343,17 @@ export default function RecordPage({ params }: { params: Promise<{ jobId: string
     await video.play();
     animId = requestAnimationFrame(drawFrame);
 
-    const stream   = canvas.captureStream(30);
-    // isTypeSupported() is unreliable — some browsers report true but the
-    // MediaRecorder constructor still throws. Try each candidate for real.
-    const MIME_CANDIDATES = [
-      'video/webm;codecs=h264',
-      'video/webm;codecs=vp9',
-      'video/webm',
-    ];
-    let recorder: MediaRecorder | null = null;
-    let mimeType = 'video/webm';
-    for (const candidate of MIME_CANDIDATES) {
-      try {
-        recorder = new MediaRecorder(stream, { mimeType: candidate, videoBitsPerSecond: 8_000_000 });
-        mimeType = candidate;
-        break;
-      } catch {
-        // candidate not actually supported by this browser — try next
-      }
-    }
-    if (!recorder) {
-      throw new Error('No supported video format found for browser recording.');
+    const stream = canvas.captureStream(30);
+    // Use plain video/webm — universally supported by all desktop browsers.
+    // Avoid codec-specific variants (h264, vp9) which throw on many browsers
+    // despite isTypeSupported() returning true.
+    let recorder: MediaRecorder;
+    const mimeType = 'video/webm';
+    try {
+      recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 });
+    } catch {
+      // Last resort: let the browser pick its own defaults
+      recorder = new MediaRecorder(stream);
     }
     recorderRef.current = recorder;
 
@@ -372,15 +363,12 @@ export default function RecordPage({ params }: { params: Promise<{ jobId: string
       cancelAnimationFrame(animId);
       video.pause();
 
-      const blob = new Blob(chunksRef.current, { type: mimeType });
+      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || mimeType });
       setPhase('uploading');
-
-      // Determine extension: mp4 if H.264 in mp4 container, otherwise webm
-      const blobExt = mimeType.includes('mp4') ? 'mp4' : 'webm';
 
       const fd = new FormData();
       fd.append('jobId', jobId);
-      fd.append('video', blob, `reel.${blobExt}`);
+      fd.append('video', blob, 'reel.webm');
 
       try {
         const res = await fetch('/api/render/browser-complete', { method: 'POST', body: fd });
@@ -388,6 +376,13 @@ export default function RecordPage({ params }: { params: Promise<{ jobId: string
           const d = await res.json();
           throw new Error(d.error ?? 'Upload failed');
         }
+        const { downloadUrl: url } = await res.json() as { downloadUrl: string };
+        // Auto-trigger download immediately
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `reel_${jobId}.webm`;
+        a.click();
+        setDownloadUrl(url);
         setPhase('done');
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Upload failed');
@@ -440,17 +435,34 @@ export default function RecordPage({ params }: { params: Promise<{ jobId: string
       <main className="min-h-screen bg-[#07080A] flex flex-col items-center justify-center gap-6 p-6">
         <div className="flex items-center gap-3">
           <span className="w-2 h-2 rounded-full bg-[#E8FF47]" />
-          <span className="text-[#E8FF47] font-mono text-sm uppercase tracking-widest">Reel ready</span>
+          <span className="text-[#E8FF47] font-mono text-sm uppercase tracking-widest">Reel saved</span>
         </div>
         <p className="text-[#5A6478] text-sm text-center max-w-xs">
-          Your reel has been saved. Go back to the home page to get your QR code and download link.
+          Your reel has been saved and the download started automatically.
         </p>
-        <a
-          href={`/?done=${jobId}`}
-          className="px-6 py-3 bg-[#E8FF47] text-[#07080A] font-bold font-mono text-sm rounded hover:bg-[#F2FF70] transition-colors uppercase tracking-wide"
-        >
-          View QR Code →
-        </a>
+        <div className="flex flex-col gap-3 w-full max-w-xs">
+          {downloadUrl && (
+            <a
+              href={downloadUrl}
+              download={`reel_${jobId}.webm`}
+              className="px-6 py-3 bg-[#E8FF47] text-[#07080A] font-bold font-mono text-sm rounded hover:bg-[#F2FF70] transition-colors uppercase tracking-wide text-center"
+            >
+              Download again ↓
+            </a>
+          )}
+          <a
+            href={`/api/library/${jobId}/download`}
+            className="px-6 py-3 border border-[#E8FF47] text-[#E8FF47] font-bold font-mono text-sm rounded hover:bg-[#E8FF4712] transition-colors uppercase tracking-wide text-center"
+          >
+            Download via server ↓
+          </a>
+          <a
+            href={`/?done=${jobId}`}
+            className="px-6 py-3 border border-[#2A3140] text-[#5A6478] font-mono text-sm rounded hover:border-[#353D4A] hover:text-[#EEF2F7] transition-colors uppercase tracking-wide text-center"
+          >
+            View QR Code →
+          </a>
+        </div>
       </main>
     );
   }

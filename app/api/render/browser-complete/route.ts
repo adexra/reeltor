@@ -39,12 +39,10 @@ export async function POST(req: NextRequest) {
   const job = await getJob(jobId);
   if (!job) return NextResponse.json({ error: 'Job not found' }, { status: 404 });
 
-  // Determine extension from mime type
-  const mime = videoBlob.type || 'video/webm';
-  const ext  = mime.includes('mp4') ? 'mp4' : 'webm';
-
+  // Always save as webm — MediaRecorder output is always webm on all browsers
+  const mime       = 'video/webm';
   const prefix     = job.user_id ?? 'anon';
-  const objectPath = `${prefix}/${jobId}_output.${ext}`;
+  const objectPath = `${prefix}/${jobId}_output.webm`;
 
   const buffer = Buffer.from(await videoBlob.arrayBuffer());
 
@@ -64,5 +62,14 @@ export async function POST(req: NextRequest) {
     error_message:     null,
   });
 
-  return NextResponse.json({ ok: true, objectPath });
+  // Return a signed URL so the client can auto-trigger download immediately
+  const { data: signedData, error: signedError } = await supabaseAdmin.storage
+    .from(BUCKET_OUTPUTS)
+    .createSignedUrl(objectPath, 3600); // 1 hour
+
+  const downloadUrl = signedError || !signedData
+    ? `/api/library/${jobId}/download`  // fallback to proxy route
+    : signedData.signedUrl;
+
+  return NextResponse.json({ ok: true, objectPath, downloadUrl });
 }
