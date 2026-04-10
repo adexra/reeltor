@@ -90,26 +90,27 @@ ${hookSkill}
 
 Output valid JSON only. No markdown, no preamble.`;
 
-  const user = `Write exactly 5 hooks for this reel.
+  const user = `VIDEO CONTENT (this is the only raw material you have — every hook must come from something specific in here):
+${videoIdea}
 
-Video content: ${videoIdea}
 Business: ${context.businessName}
 Audience: ${context.targetAudience}
 Tone: ${context.tone}
 
-Each hook must use a DIFFERENT viral angle from the skill:
-1. Pattern interrupt
-2. Direct address
-3. Specific claim (must include a number or concrete detail)
-4. Tension/stakes
-5. Provocative question
+Write exactly 5 hooks. Each must use a DIFFERENT viral angle AND be grounded in a specific detail, tension, or contrast from the video content above — not the topic category in general.
+
+Angles (one per hook):
+1. Pattern interrupt — say the opposite of what someone would expect about this specific content
+2. Direct address — name the exact person this video is for, using a specific detail from the content
+3. Specific claim — include a concrete number, fact, or named thing from the content
+4. Tension/stakes — something is at risk or about to be revealed that exists in this specific content
+5. Provocative question — sounds wrong or surprising based on what this specific content reveals
 
 Hard rules:
 - 2–6 words per hook
 - No punctuation at end
 - No filler openers: "The secret", "How to", "Why you", "Here's", "This is"
 - No verb + "your" constructions ("Protect your", "Transform your", "Unlock your")
-- Every hook must be grounded in the SPECIFIC video content described above — not the topic category
 - Write in the language that best matches the target audience
 
 Return exactly:
@@ -206,49 +207,53 @@ export async function generateCaptions(
   videoIdea: string,
   context: BusinessContext,
 ): Promise<Array<{ id: string; text: string; format: string }>> {
-  const system = `You are a viral Instagram Reels caption writer. This is critical context: the reel is only 5 seconds long. The hook on-screen tells viewers to read the description. THE CAPTION IS THE CONTENT. People tap "more" specifically to get the value, the steps, the story, the tips. A short caption defeats the entire purpose of the reel.
+  const system = `You are a viral Instagram caption writer. Your only job is to turn the specific content from the user's topic into 5 captions that each feel like they were written by a different person on a different day.
 
-EVERY caption must be LONG and DENSE with real, specific, actionable content. Think 150–300 words per caption. Not a summary. The full thing.
+THE CARDINAL RULE: Every caption must be rooted in the exact subject matter provided — not the category it belongs to, not a generic version of it. The specific thing. If the topic is about AI image prompts that avoid rubbery results, the caption must talk about rubbery results, real-world physics in prompts, what bad prompts actually produce — not just "AI tools" or "visuals" in the abstract.
 
-Caption structure rules:
-- First line: must create immediate tension or curiosity — it's what shows before "more" is tapped
-- Body: this is where you DELIVER. Real steps. Concrete tips. Specific situations. Named examples. The reader came here for substance — give it to them.
-- Each paragraph: 2–3 sentences max, then a line break. Never a wall of text.
-- No numbered lists. No bullet points. No bold markdown (**text**). Instagram doesn't render any of these.
-- Emojis: 1–2 max total, used purposefully, never decorative.
-- CTA: last line, standalone, specific action.
+Before writing, extract 5 distinct angles from the topic. Each caption uses a DIFFERENT angle. If two captions could swap content, you failed.
 
-Voice: one human talking directly to one other person. Not a brand. Not a coach. Someone who actually does this.
+Structural rules (non-negotiable):
+- First line: cannot start with "I", the brand name, or a soft question ("Have you ever", "Are you"). Must create tension, curiosity, or a sharp claim.
+- Body: 150–300 words of real, specific content. Short paragraphs (2–3 sentences max), then a line break.
+- No numbered lists, no bullet points, no bold markdown (**text**). Instagram renders none of these.
+- Emojis: 1–2 max, purposeful, never decorative.
+- CTA: last line, standalone, low-friction, specific.
 
-Never use: "game-changer", "unlock", "transform your", "dive into", "in today's world", "the truth is", "let's be honest", "here's the thing", "it's no secret", "level up", "don't miss out", "Start building your workflow today".
+Voice: one person talking to one other person. Conversational. Not a brand. Not a coach.
+
+Banned phrases (instant fail): "game-changer", "unlock", "transform your", "dive into", "in today's world", "the truth is", "let's be honest", "here's the thing", "it's no secret", "level up", "don't miss out", "Start building your workflow today".
 
 Output valid JSON only. No markdown wrapping, no preamble.`;
 
-  const user = `The hook for this reel is: "${selectedHookText}"
+  const user = `TOPIC — mine this for every specific detail, contrast, example, and tension point:
+${videoIdea}
+
+Hook on screen: "${selectedHookText}"
 Business: ${context.businessName}
 Audience: ${context.targetAudience}
 Tone: ${context.tone}
 Product/Service: ${context.productDescription}
-Video idea: ${videoIdea}
 
-Write 5 long Instagram captions. Each should be 150–300 words of real, specific content that delivers on the promise of the hook. The reel is 5 seconds — the caption does all the heavy lifting.
+Step 1 — Extract 5 different angles from the topic above. Each must be a specific tension, insight, story beat, or contrast that exists in the topic. Not the generic category — the actual thing.
 
-Use a DIFFERENT format for each — but all must be LONG and SUBSTANTIVE:
+Step 2 — Write one caption per angle. Each uses a DIFFERENT perspective and emotional entry point:
 
-Format A: Leads with a bold statement. Then delivers 4–6 concrete, specific tips or steps written as short paragraphs (not lists). Ends with a direct CTA.
+Caption 1 — The problem made visceral. Open with the specific failure mode from the topic. Deliver the mechanism behind why it happens. End with a "this is fixable" style CTA.
 
-Format B: Opens with a relatable situation or moment. Tells the story of what went wrong, what changed, what they learned. Specific details. Ends with "if this is you" style CTA.
+Caption 2 — The turning point. Drop into the middle of a specific moment where something shifted. What changed, why, what it led to. Concrete — no vague epiphanies. End with "if this is you" CTA.
 
-Format C: Opens with a counterintuitive claim. Explains WHY in 3–4 short paragraphs, each a complete thought. Each paragraph reveals something new. Ends with a question CTA.
+Caption 3 — The counterintuitive truth. Open with a claim that sounds wrong. Explain why the obvious approach fails and what the non-obvious fix actually is. Each paragraph reveals a new layer. End with a question CTA.
 
-Format D: Drops straight into a specific scene ("It was [specific time/situation]..."). Narrates what happened. Pulls out the lesson in the last third. Ends with a save or share CTA.
+Caption 4 — The how-to with teeth. Open with a sharp statement. Walk through the actual method — specific steps, real examples, named details from the topic. Not tips. The actual process. End with a save CTA.
 
-Format E: Written as a sequence of moments or revelations — each paragraph is one insight or step, written in prose (not a list). 5–7 paragraphs. Ends with CTA.
+Caption 5 — The honest take. Written like someone who tried the wrong way first, figured it out, and is passing it on. Specific mistakes named. Specific lesson extracted. End with a direct action CTA.
 
 Use \\n\\n between every paragraph. No numbered lists, no bullet points, no bold markdown.
 
 Return:
 {
+  "angles": ["angle 1", "angle 2", "angle 3", "angle 4", "angle 5"],
   "captions": [
     { "id": "caption_1", "text": "...", "format": "A" },
     { "id": "caption_2", "text": "...", "format": "B" },
