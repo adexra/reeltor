@@ -762,7 +762,7 @@ export function GeneratorPanel({ context, onPhase1Complete }: Props) {
                   <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
                   <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
                 </svg>
-                <span className="text-[#5A6478] text-sm">Drop or <span className="text-[#EEF2F7] underline underline-offset-2">browse</span></span>
+                <span className="text-[#5A6478] text-sm"><span className="sm:hidden">Tap to </span><span className="hidden sm:inline">Drop or </span><span className="text-[#EEF2F7] underline underline-offset-2">browse</span></span>
                 <span className="text-[10px] font-mono text-[#353D4A] uppercase tracking-widest">.mp4 · .mov · .webm · up to 2GB</span>
               </div>
             )}
@@ -770,7 +770,7 @@ export function GeneratorPanel({ context, onPhase1Complete }: Props) {
         </div>
 
         {/* Video Idea — raw notes, never shown on preview */}
-        <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
+        <div className="flex flex-col sm:grid sm:grid-cols-[1fr_auto] gap-3 sm:gap-4 sm:items-start">
           <FormField label="Video Idea / Notes">
             <textarea
               value={videoIdea}
@@ -893,7 +893,7 @@ export function GeneratorPanel({ context, onPhase1Complete }: Props) {
 
         {!context.businessName && !isRunning && (
           <p className="text-[10px] font-mono text-[#353D4A] uppercase tracking-widest text-center -mt-4">
-            Fill Business Context in sidebar first
+            ← Tap the menu icon to fill Business Context
           </p>
         )}
       </div>

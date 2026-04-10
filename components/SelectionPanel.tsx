@@ -1,6 +1,27 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+
+// ── Copy Button ───────────────────────────────────────────────────────────────
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(text).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }).catch(() => {});
+      }}
+      className="self-start text-[11px] font-mono px-3 py-2 rounded border border-[#2A3140] text-[#5A6478] hover:text-[#EEF2F7] hover:border-[#353D4A] active:scale-95 transition-all uppercase tracking-wide min-h-[44px] flex items-center gap-2 touch-manipulation"
+    >
+      {copied ? '✓ Copied' : '⎘ Copy caption'}
+    </button>
+  );
+}
 import { createClient } from '@supabase/supabase-js';
 import type { GenerationResult, HookOption, CaptionOption, RenderResult, DesignConfig } from '../schema';
 import { DesignEditor, DEFAULT_DESIGN } from './DesignEditor';
@@ -256,10 +277,10 @@ function CaptionStage({
         </div>
       </section>
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 w-full">
         <button
           onClick={() => onCaptionConfirmed({ ...renderResult, selectedCaptionId })}
-          className="flex-1 py-3.5 bg-[#E8FF47] text-[#07080A] font-bold font-mono text-sm rounded hover:bg-[#F2FF70] active:scale-[0.99] transition-all uppercase tracking-[0.08em]"
+          className="flex-1 py-4 md:py-3.5 bg-[#E8FF47] text-[#07080A] font-bold font-mono text-sm rounded hover:bg-[#F2FF70] active:scale-[0.99] transition-all uppercase tracking-[0.08em] touch-manipulation"
         >
           Brand Your Reel →
         </button>
@@ -301,11 +322,11 @@ function BrandStage({
         hookText={renderResult.selectedHookText}
       />
 
-      <div className="flex gap-3 max-w-sm">
+      <div className="flex gap-3 w-full max-w-sm">
         <BackButton onClick={onBack} />
         <button
           onClick={() => onConfirmed(localDesign)}
-          className="flex-1 py-3 bg-[#E8FF47] text-[#07080A] font-bold font-mono text-sm rounded hover:bg-[#F2FF70] transition-colors uppercase tracking-wide"
+          className="flex-1 py-3 bg-[#E8FF47] text-[#07080A] font-bold font-mono text-sm rounded hover:bg-[#F2FF70] transition-colors uppercase tracking-wide touch-manipulation"
         >
           Style the Design →
         </button>
@@ -656,10 +677,15 @@ function CaptionCard({
       <button
         type="button"
         onClick={onToggleExpand}
-        className="w-full px-4 pb-3 text-left text-[10px] font-mono text-[#353D4A] hover:text-[#5A6478] transition-colors uppercase tracking-widest"
+        className="w-full px-4 pb-4 pt-1 text-left text-[11px] font-mono text-[#353D4A] hover:text-[#5A6478] active:text-[#5A6478] transition-colors uppercase tracking-widest min-h-[44px] flex items-center"
       >
         {expanded ? '↑ Collapse' : '↓ Read full caption'}
       </button>
+      {expanded && (
+        <div className="px-4 pb-4">
+          <CopyButton text={caption.text} />
+        </div>
+      )}
     </div>
   );
 }

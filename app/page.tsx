@@ -140,6 +140,17 @@ export default function HomePage() {
 
         {/* Content */}
         <div className="px-4 md:px-8 py-6 md:py-10">
+          {!context.businessName && !generationResult && !doneJobId && (
+            <div className="md:hidden mb-4 px-4 py-3 rounded border border-[#E8FF4740] bg-[#E8FF4708] flex items-center justify-between gap-3">
+              <span className="text-[#E8FF47] text-xs font-mono">Set up your business context first</span>
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="text-[#E8FF47] text-xs font-mono underline underline-offset-2 shrink-0 touch-manipulation"
+              >
+                Open →
+              </button>
+            </div>
+          )}
           {doneJobId ? (
             <RenderSuccess jobId={doneJobId} onReset={handleReset} />
           ) : generationResult ? (
@@ -160,7 +171,7 @@ function RenderSuccess({ jobId, onReset }: { jobId: string; onReset: () => void 
     : `/m/${jobId}`;
 
   return (
-    <div className="flex flex-col items-start gap-8 max-w-md">
+    <div className="flex flex-col items-center md:items-start gap-8 w-full max-w-md mx-auto">
       <div className="flex items-center gap-3">
         <span className="w-2 h-2 rounded-full bg-[#E8FF47]" />
         <span className="text-[#E8FF47] font-mono text-sm uppercase tracking-widest">Reel rendered</span>
@@ -178,7 +189,7 @@ function RenderSuccess({ jobId, onReset }: { jobId: string; onReset: () => void 
         <p className="text-[#5A6478] text-sm">
           Scan with your phone to download the video and copy the caption for posting.
         </p>
-        <div className="p-4 bg-white rounded-xl inline-block self-start">
+        <div className="p-4 bg-white rounded-xl inline-block self-center md:self-start">
           <QRCodeSVG
             value={mobileUrl}
             size={180}
@@ -187,19 +198,19 @@ function RenderSuccess({ jobId, onReset }: { jobId: string; onReset: () => void 
             level="M"
           />
         </div>
-        <p className="text-[10px] font-mono text-[#353D4A] break-all">{mobileUrl}</p>
+        <p className="text-[10px] font-mono text-[#353D4A] break-all text-center md:text-left">{mobileUrl}</p>
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3 w-full">
         <a
           href="/library"
-          className="px-5 py-2.5 bg-[#E8FF47] text-[#07080A] font-mono text-sm font-bold rounded hover:bg-[#F2FF70] transition-colors uppercase tracking-wide"
+          className="w-full sm:w-auto text-center px-5 py-2.5 bg-[#E8FF47] text-[#07080A] font-mono text-sm font-bold rounded hover:bg-[#F2FF70] transition-colors uppercase tracking-wide touch-manipulation"
         >
           View Library
         </a>
         <button
           onClick={onReset}
-          className="px-5 py-2.5 border border-[#1E2329] text-[#5A6478] font-mono text-sm rounded hover:border-[#2A3140] hover:text-[#EEF2F7] transition-colors uppercase tracking-wide"
+          className="w-full sm:w-auto text-center px-5 py-2.5 border border-[#1E2329] text-[#5A6478] font-mono text-sm rounded hover:border-[#2A3140] hover:text-[#EEF2F7] transition-colors uppercase tracking-wide touch-manipulation"
         >
           New Reel
         </button>

@@ -182,16 +182,22 @@ function HookOverlay({ hookText, design }: { hookText: string; design: DesignCon
 export default function RecordPage({ params }: { params: Promise<{ jobId: string }> }) {
   const { jobId } = use(params);
 
-  const [job,         setJob]         = useState<JobInfo | null>(null);
-  const [error,       setError]       = useState<string | null>(null);
-  const [phase,       setPhase]       = useState<'loading' | 'ready' | 'recording' | 'uploading' | 'done'>('loading');
-  const [progress,    setProgress]    = useState(0); // 0–100 during recording
-  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [job,            setJob]            = useState<JobInfo | null>(null);
+  const [error,          setError]          = useState<string | null>(null);
+  const [phase,          setPhase]          = useState<'loading' | 'ready' | 'recording' | 'uploading' | 'done'>('loading');
+  const [progress,       setProgress]       = useState(0); // 0–100 during recording
+  const [downloadUrl,    setDownloadUrl]    = useState<string | null>(null);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
 
   const videoRef    = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef   = useRef<Blob[]>([]);
+
+  // ── Mobile detection ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    setIsMobileDevice(window.innerWidth < 768 || /Mobi|Android/i.test(navigator.userAgent));
+  }, []);
 
   // ── Load job data ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -224,6 +230,12 @@ export default function RecordPage({ params }: { params: Promise<{ jobId: string
   // ── Record ───────────────────────────────────────────────────────────────────
   async function startRecording() {
     if (!job || !videoRef.current || !containerRef.current) return;
+
+    const isMobile = window.innerWidth < 768 || /Mobi|Android/i.test(navigator.userAgent);
+    if (isMobile) {
+      setError('Browser recording requires a desktop browser (Chrome or Firefox). On mobile, use the Cloud render option instead.');
+      return;
+    }
 
     // canvas.captureStream() is not supported on iOS Safari
     const testCanvas = document.createElement('canvas');
@@ -515,12 +527,19 @@ export default function RecordPage({ params }: { params: Promise<{ jobId: string
         </div>
       )}
 
+      {/* Mobile warning */}
+      {isMobileDevice && phase === 'ready' && (
+        <div className="w-full max-w-sm px-4 py-3 rounded border border-amber-500/40 bg-amber-950/20 text-amber-400 text-xs font-mono text-center">
+          Browser recording requires desktop Chrome or Firefox. Use Cloud render on mobile.
+        </div>
+      )}
+
       {/* Actions */}
       <div className="w-full max-w-xs flex flex-col gap-3">
         {phase === 'ready' && (
           <button
             onClick={startRecording}
-            className="w-full py-3.5 bg-[#E8FF47] text-[#07080A] font-bold font-mono text-sm rounded-lg hover:bg-[#F2FF70] active:scale-[0.98] transition-all uppercase tracking-wide"
+            className="w-full py-3.5 bg-[#E8FF47] text-[#07080A] font-bold font-mono text-sm rounded-lg hover:bg-[#F2FF70] active:scale-[0.98] transition-all uppercase tracking-wide touch-manipulation"
           >
             Record Reel ({job.duration}s)
           </button>

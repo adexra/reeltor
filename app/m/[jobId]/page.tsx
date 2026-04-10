@@ -108,14 +108,14 @@ export default function MobileHandoff({ params }: { params: Promise<{ jobId: str
       <div className="w-full max-w-xs flex flex-col gap-3">
         <button
           onClick={handleCopy}
-          className="w-full py-3.5 bg-[#E8FF47] text-[#07080A] font-bold font-mono text-sm rounded-lg hover:bg-[#F2FF70] active:scale-[0.98] transition-all uppercase tracking-wide"
+          className="w-full py-3.5 bg-[#E8FF47] text-[#07080A] font-bold font-mono text-sm rounded-lg hover:bg-[#F2FF70] active:scale-[0.98] transition-all uppercase tracking-wide touch-manipulation"
         >
           {copied ? '✓ Copied!' : 'Copy Caption + Hashtags'}
         </button>
         <a
           href={`/api/library/${jobId}/download`}
           download="reel.mp4"
-          className="w-full py-3.5 border border-[#1E2329] text-[#5A6478] font-mono text-sm rounded-lg hover:border-[#2A3140] hover:text-[#EEF2F7] transition-colors text-center uppercase tracking-wide"
+          className="w-full py-3.5 border border-[#1E2329] text-[#5A6478] font-mono text-sm rounded-lg hover:border-[#2A3140] hover:text-[#EEF2F7] transition-colors text-center uppercase tracking-wide touch-manipulation"
         >
           Download Video
         </a>
