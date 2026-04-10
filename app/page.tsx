@@ -165,40 +165,61 @@ export default function HomePage() {
 }
 
 function RenderSuccess({ jobId, onReset }: { jobId: string; onReset: () => void }) {
-  // Build the mobile handoff URL — works on Vercel (uses window.location.origin)
   const mobileUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/m/${jobId}`
     : `/m/${jobId}`;
 
   return (
-    <div className="flex flex-col items-center md:items-start gap-8 w-full max-w-md mx-auto">
+    <div className="flex flex-col items-center md:items-start gap-6 w-full max-w-md mx-auto">
       <div className="flex items-center gap-3">
         <span className="w-2 h-2 rounded-full bg-[#E8FF47]" />
-        <span className="text-[#E8FF47] font-mono text-sm uppercase tracking-widest">Reel rendered</span>
+        <span className="text-[#E8FF47] font-mono text-sm uppercase tracking-widest">Reel ready</span>
       </div>
 
       <h2
         style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.03em' }}
         className="text-2xl font-extrabold text-[#EEF2F7]"
       >
-        Your reel is ready.
+        Scan to post from your phone.
       </h2>
 
-      {/* QR Code handoff */}
-      <div className="flex flex-col gap-4">
-        <p className="text-[#5A6478] text-sm">
-          Scan with your phone to download the video and copy the caption for posting.
+      {/* QR Code — primary action, front and center */}
+      <div className="w-full flex flex-col items-center md:items-start gap-3">
+        <p className="text-[#5A6478] text-sm text-center md:text-left">
+          Open your camera app and point it at the code below. It will open the video + caption on your phone so you can download and post directly.
         </p>
-        <div className="p-4 bg-white rounded-xl inline-block self-center md:self-start">
+
+        <div className="p-5 bg-white rounded-2xl shadow-[0_0_40px_rgba(232,255,71,0.15)]">
           <QRCodeSVG
             value={mobileUrl}
-            size={180}
+            size={200}
             bgColor="#ffffff"
             fgColor="#07080A"
             level="M"
           />
         </div>
-        <p className="text-[10px] font-mono text-[#353D4A] break-all text-center md:text-left">{mobileUrl}</p>
+
+        <p className="text-[10px] font-mono text-[#2A3140] break-all text-center md:text-left max-w-xs">
+          {mobileUrl}
+        </p>
+      </div>
+
+      {/* Step guide */}
+      <div className="w-full flex flex-col gap-2 py-4 border-t border-b border-[#1E2329]">
+        {[
+          ['1', 'Scan QR code with your phone camera'],
+          ['2', 'Watch the preview on your phone'],
+          ['3', 'Tap "Copy Caption + Hashtags"'],
+          ['4', 'Tap "Download Video"'],
+          ['5', 'Open Instagram → New Reel → paste & post'],
+        ].map(([n, step]) => (
+          <div key={n} className="flex items-center gap-3">
+            <span className="w-5 h-5 rounded-full border border-[#E8FF4740] bg-[#E8FF4710] flex items-center justify-center shrink-0">
+              <span className="text-[#E8FF47] text-[9px] font-mono font-bold">{n}</span>
+            </span>
+            <span className="text-[#5A6478] text-xs font-mono">{step}</span>
+          </div>
+        ))}
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 w-full">
