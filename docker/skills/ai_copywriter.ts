@@ -297,7 +297,7 @@ Option E — Engagement-first. Entire caption is built around drawing the reader
 
 QUALITY STANDARDS — meet all of these:
 - First line creates immediate tension, curiosity, or recognition — cannot start with "I", the brand name, or soft openers ("Have you ever", "Are you")
-- Every caption must be 200–500 words. Short captions = rejected. More words = more connection = more reach.
+- Every caption must be 400–900 words. Short captions = rejected and wrong. The video is short — the description IS the content. People come to read it. Give them something worth reading.
 - Each option must feel unmistakably different from the others — not just different word choices, but different emotional register, different pacing, different structure
 - No **bold markdown** (Instagram doesn't render it — looks broken)
 - No numbered lists (1. 2. 3.) — use visual spacing and line breaks instead
@@ -322,7 +322,7 @@ Audience: ${context.targetAudience}
 Tone: ${context.tone}
 Product/Service: ${context.productDescription}
 
-Write 5 captions — each 200–500 words, each with a completely different feel and structure. All 5 draw from the same creator brief but should sound like they were written for different formats and emotional registers.
+Write 5 captions — each 400–900 words, each with a completely different feel and structure. All 5 draw from the same creator brief but should sound like they were written for different formats and emotional registers.
 
 Before you write each caption, ask yourself: "Would someone who sees this caption feel like they're reading something real and specific — or something generic?" If generic: rewrite it.
 
@@ -371,6 +371,7 @@ HARD RULE: If a caption fails more than 2 checks, cap score at 3.`;
 4. hasCTA — clear specific CTA in the last standalone line (not "follow for more")
 5. spellingOk — every word spelled correctly
 6. toneMatch — tone matches "${context.tone}" for audience "${context.targetAudience}"
+7. isLongEnough — caption is at least 400 words. The video is short; the description carries the content. Captions under 400 words fail this check automatically.
 
 Captions:
 ${JSON.stringify(captions.map(c => ({ id: c.id, text: c.text })))}
@@ -386,6 +387,7 @@ Return:
       "noForbiddenPhrases": true,
       "noMarkdown": true,
       "firstLineStrong": true,
+      "isLongEnough": true,
       "score": 8,
       "failReasons": [],
       "correctedText": "..."
