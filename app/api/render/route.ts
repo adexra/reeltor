@@ -27,6 +27,7 @@ import type {
 } from '../../../schema';
 import { CLIP_DURATIONS } from '../../../schema';
 import {
+  parseDraft,
   generateCaptions,
   qaCaptions,
   validateAgainstSkill,
@@ -157,7 +158,10 @@ async function handleCaptions(body: CaptionsBody): Promise<NextResponse> {
     await appendLog(`[${new Date().toISOString()}] Job ${jobId} Phase 2a started. hook="${selectedHookText}"`);
     await updateJobProgress(jobId, 'generating_captions', 10);
 
-    const rawCaptions       = await generateCaptions(selectedHookText, request.videoIdea, request.context);
+    const brief = await parseDraft(request.videoIdea, request.context);
+    await updateJobProgress(jobId, 'generating_captions', 25);
+
+    const rawCaptions       = await generateCaptions(selectedHookText, request.videoIdea, request.context, brief);
     await updateJobProgress(jobId, 'qa_captions', 50);
 
     const qaCaptionResults  = await qaCaptions(rawCaptions, request.context);

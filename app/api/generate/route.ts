@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import type { GenerateRequest, GenerationResult, SSEProgressEvent } from '../../../schema';
-import { generateHooks, qaHooks } from '../../../skills/ai_copywriter';
+import { parseDraft, generateHooks, qaHooks } from '../../../skills/ai_copywriter';
 import { generateWordTimestamps } from '../../../skills/audio_transcriber';
 import { appendLog, appendErrorLog } from '../../../skills/library_manager';
 import {
@@ -126,10 +126,15 @@ async function runPhase1(
     return null;
   });
 
-  emit({ step: 'generating_hooks', progress: 40, jobId, message: 'Writing 5 hook options…' });
-  await updateJobProgress(jobId, 'generating_hooks', 40);
+  emit({ step: 'generating_hooks', progress: 35, jobId, message: 'Reading your draft…' });
+  await updateJobProgress(jobId, 'generating_hooks', 35);
 
-  const rawHooks = await generateHooks(request.videoIdea, request.context);
+  const brief = await parseDraft(request.videoIdea, request.context);
+
+  emit({ step: 'generating_hooks', progress: 50, jobId, message: 'Writing 5 hook options…' });
+  await updateJobProgress(jobId, 'generating_hooks', 50);
+
+  const rawHooks = await generateHooks(request.videoIdea, request.context, brief);
 
   emit({ step: 'qa_hooks', progress: 70, jobId, message: 'Scoring hooks…' });
   await updateJobProgress(jobId, 'qa_hooks', 70);

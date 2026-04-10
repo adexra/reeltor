@@ -69,6 +69,55 @@ async function azureChat(systemPrompt: string, userPrompt: string): Promise<stri
   return raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
 }
 
+// ── 0. parseDraft ─────────────────────────────────────────────────────────────
+// Reads the user's raw draft text and produces a structured brief.
+// This brief is the single source of truth for all downstream generation.
+
+export interface DraftBrief {
+  coreClaim: string;           // the main point the user is making
+  specificExamples: string[];  // concrete things they named (products, scenarios, comparisons)
+  tensions: string[];          // conflicts, problems, or contrasts they described
+  engagementMechanics: string[]; // CTAs, polls, challenges they described ("comment 1 or 2", etc.)
+  keyPhrases: string[];        // exact language from the draft worth preserving verbatim
+  suggestedAngles: string[];   // 5 distinct content angles to build from
+}
+
+export async function parseDraft(
+  rawDraft: string,
+  context: BusinessContext,
+): Promise<DraftBrief> {
+  const system = `You are a content strategist. Your job is to deeply read a creator's rough draft and extract the structured ingredients — the specific claims, examples, tensions, and language they have already written. You do not add ideas they didn't write. You surface and organize what is already there.
+
+Output valid JSON only. No markdown, no preamble.`;
+
+  const user = `Read this draft carefully. Extract only what the creator actually wrote — do not invent new ideas.
+
+DRAFT:
+${rawDraft}
+
+Business: ${context.businessName}
+Audience: ${context.targetAudience}
+Tone: ${context.tone}
+Product/Service: ${context.productDescription}
+
+Return a structured brief:
+{
+  "coreClaim": "The single main point the creator is making in one sentence",
+  "specificExamples": ["exact things they named or described — products, scenarios, comparisons, before/afters"],
+  "tensions": ["specific problems, failures, or conflicts they described — not generic versions"],
+  "engagementMechanics": ["any CTAs, polls, challenges, or interactive elements they wrote — e.g. 'comment which looks more real: 1 or 2'"],
+  "keyPhrases": ["exact phrases from the draft that are specific and worth preserving verbatim"],
+  "suggestedAngles": [
+    "5 distinct angles for captions — each must be grounded in something from the draft, not invented"
+  ]
+}`;
+
+  const raw    = await azureChat(system, user);
+  const parsed = JSON.parse(raw) as DraftBrief;
+  if (!parsed.coreClaim) throw new Error('parseDraft: invalid response structure');
+  return parsed;
+}
+
 // ── 1. generateHooks ─────────────────────────────────────────────────────────
 
 function loadHookSkill(): string {
@@ -79,6 +128,7 @@ function loadHookSkill(): string {
 export async function generateHooks(
   videoIdea: string,
   context: BusinessContext,
+  brief?: DraftBrief,
 ): Promise<Array<{ id: string; text: string }>> {
   const hookSkill = loadHookSkill();
 
@@ -90,21 +140,28 @@ ${hookSkill}
 
 Output valid JSON only. No markdown, no preamble.`;
 
-  const user = `VIDEO CONTENT (this is the only raw material you have — every hook must come from something specific in here):
-${videoIdea}
+  const briefSection = brief ? `
+STRUCTURED BRIEF (extracted from the creator's draft — use these as your source):
+Core claim: ${brief.coreClaim}
+Specific examples: ${brief.specificExamples.join(' | ')}
+Tensions: ${brief.tensions.join(' | ')}
+Key phrases to draw from: ${brief.keyPhrases.join(' | ')}
+` : `RAW DRAFT:\n${videoIdea}`;
+
+  const user = `${briefSection}
 
 Business: ${context.businessName}
 Audience: ${context.targetAudience}
 Tone: ${context.tone}
 
-Write exactly 5 hooks. Each must use a DIFFERENT viral angle AND be grounded in a specific detail, tension, or contrast from the video content above — not the topic category in general.
+Write exactly 5 hooks. Each must use a DIFFERENT viral angle AND be grounded in a specific detail, tension, or example from the brief above — not the topic category in general.
 
 Angles (one per hook):
 1. Pattern interrupt — say the opposite of what someone would expect about this specific content
-2. Direct address — name the exact person this video is for, using a specific detail from the content
-3. Specific claim — include a concrete number, fact, or named thing from the content
+2. Direct address — name the exact person this video is for, using a specific detail from the brief
+3. Specific claim — include a concrete number, fact, or named thing from the brief
 4. Tension/stakes — something is at risk or about to be revealed that exists in this specific content
-5. Provocative question — sounds wrong or surprising based on what this specific content reveals
+5. Provocative question — sounds wrong or surprising based on what the brief reveals
 
 Hard rules:
 - 2–6 words per hook
@@ -206,30 +263,40 @@ export async function generateCaptions(
   selectedHookText: string,
   videoIdea: string,
   context: BusinessContext,
+  brief?: DraftBrief,
 ): Promise<Array<{ id: string; text: string; format: string }>> {
-  const system = `You are a viral Instagram caption writer. The user has already done the creative thinking — they wrote a topic brief with specific ideas, angles, contrasts, and examples. Your job is to take that raw material and elevate it into 5 rich, human, fully-developed captions. You are an editor and amplifier, not a rewriter.
+  const system = `You are a viral Instagram caption writer and editor. The creator has already done the creative work — they wrote a draft with specific ideas, examples, scenarios, and language. Your job is to take those exact ingredients and develop them into 5 rich, fully-written captions. You are a baker given a recipe — not someone who invents a new recipe when handed one.
 
-TREAT THE TOPIC AS SACRED: The user's specific language, examples, contrasts, and scenarios must survive into the final captions. If they wrote "rubbery-looking AI images", that phrase or its meaning must appear. If they described a specific scenario ("leave a comment: option 1 or 2"), that mechanic must be honored. Do not swap their specifics for generic equivalents.
+RULE 1 — USE THEIR INGREDIENTS: Every specific example, scenario, contrast, engagement mechanic, and key phrase from the brief must appear in at least one caption. If they wrote "leave a comment: option 1 or 2", that exact mechanic must be in a caption. If they named a specific thing ("rubbery-looking AI images", a real outcome, a product feature), it must appear — not a generic equivalent.
 
-THE CARDINAL RULE: Every caption must be rooted in the exact subject matter from the topic — not the category it belongs to. If two captions could swap content, you failed.
+RULE 2 — ONE BRIEF, FIVE ANGLES: Write each caption from a different emotional angle. Each one should feel like it was written for a different moment in the reader's journey — but all are made from the same ingredients.
 
-Length requirement: Each caption must be 150–350 words (roughly 1000–2000 characters). This is not optional. Short captions fail the user's audience who came to read. Count your words before returning. If a caption is under 150 words, expand it with more specific detail from the topic. You have room to go long — use it.
+RULE 3 — LENGTH: Each caption must be 150–350 words. Count before returning. Under 150 = expand with more from the brief. You have room — use it.
 
 Structural rules (non-negotiable):
-- First line: cannot start with "I", the brand name, or a soft question ("Have you ever", "Are you"). Must create tension, curiosity, or a sharp claim.
-- Body: short paragraphs (2–3 sentences max), then a line break. No walls of text.
-- No numbered lists, no bullet points, no bold markdown (**text**). Instagram renders none of these.
-- Emojis: 1–2 max, purposeful, never decorative.
-- CTA: last line, standalone, low-friction, specific. Must relate to the specific content — not generic "follow for more".
+- First line: cannot start with "I", the brand name, or a soft question. Must create tension or a sharp claim.
+- Body: short paragraphs, 2–3 sentences max, then a line break.
+- No numbered lists, no bullet points, no bold markdown. Instagram renders none of these.
+- Emojis: 1–2 max, purposeful only.
+- CTA: last line, standalone, specific to the content.
 
-Voice: one person talking to one other person. Conversational. Someone who actually does this, not a brand account.
+Voice: one person talking directly to one other person.
 
-Banned phrases (instant fail): "game-changer", "unlock", "transform your", "dive into", "in today's world", "the truth is", "let's be honest", "here's the thing", "it's no secret", "level up", "don't miss out", "Start building your workflow today".
+Banned phrases: "game-changer", "unlock", "transform your", "dive into", "in today's world", "the truth is", "let's be honest", "here's the thing", "it's no secret", "level up", "don't miss out".
 
 Output valid JSON only. No markdown wrapping, no preamble.`;
 
-  const user = `TOPIC (the user's raw brief — preserve their specific language, examples, and angles):
-${videoIdea}
+  const briefSection = brief ? `
+STRUCTURED BRIEF (these are the creator's exact ingredients — build from these):
+Core claim: ${brief.coreClaim}
+Specific examples: ${brief.specificExamples.join(' | ')}
+Tensions/problems described: ${brief.tensions.join(' | ')}
+Engagement mechanics they wrote: ${brief.engagementMechanics.join(' | ')}
+Key phrases to preserve: ${brief.keyPhrases.join(' | ')}
+Suggested angles: ${brief.suggestedAngles.join(' | ')}
+` : `CREATOR'S DRAFT:\n${videoIdea}`;
+
+  const user = `${briefSection}
 
 Hook on screen: "${selectedHookText}"
 Business: ${context.businessName}
@@ -237,25 +304,22 @@ Audience: ${context.targetAudience}
 Tone: ${context.tone}
 Product/Service: ${context.productDescription}
 
-Step 1 — Identify the 5 most specific angles already present in the topic above. These are tensions, contrasts, scenarios, or examples the user actually wrote — not generic versions. Name them explicitly.
+Write 5 captions. Each uses a DIFFERENT emotional entry point but all draw from the same brief above:
 
-Step 2 — Write one caption per angle. Each must use a DIFFERENT emotional entry point and must preserve the specific detail from that angle:
+Caption 1 — The problem made visceral. Open with the specific failure or frustration from the brief. Show why it happens and what it feels like. Build to the relief. End with a "this is fixable" CTA tied to the specific product or scenario.
 
-Caption 1 — The problem made visceral. Open with the specific failure the user described. Show the mechanism — why does this happen, what does it feel like. Build to the relief. End with a "this is fixable" style CTA tied to the specific product/scenario.
+Caption 2 — The turning point. Drop into a specific before/after moment from the brief. Name what specifically changed and why it mattered. No vague revelations. End with "if this is you" CTA.
 
-Caption 2 — The turning point. Drop into a specific moment from the topic where something shifted. The before, what changed, the after. No vague revelations — name what specifically changed and why it mattered. End with "if this is you" CTA.
+Caption 3 — The counterintuitive truth. Open with a surprising claim from the brief. Explain why the obvious approach fails, then reveal the real mechanism layer by layer. End with a question CTA.
 
-Caption 3 — The counterintuitive truth. Open with a claim from the topic that sounds wrong or surprising. Systematically explain why the obvious approach fails, then reveal the real mechanism. Each paragraph adds a new layer of the same specific insight. End with a question CTA that invites the reader to reflect.
+Caption 4 — The how-to with teeth. Open with a sharp, specific claim. Walk through the actual method — real steps, named things, concrete examples from the brief. Not tips about the process. The process itself. End with a save CTA.
 
-Caption 4 — The how-to with teeth. Open with a sharp, specific claim. Walk through the actual method using the specific details from the topic — real steps, named things, concrete examples. This is the process itself, not tips about the process. End with a save CTA.
+Caption 5 — The contrast reveal. Built around any engagement mechanic the creator wrote (poll, before/after, 1 or 2, test). Build suspense, deliver the reveal with specifics from the brief, close with the engagement CTA they described.
 
-Caption 5 — The contrast reveal. Use any engagement mechanic the user described (e.g. "comment which looks more real: 1 or 2", a before/after, a test). Build suspense around the contrast, deliver the reveal with specifics, close with the insight. End with the engagement CTA from the topic.
-
-Use \\n\\n between every paragraph. No numbered lists, no bullet points, no bold markdown. Each caption must be 150–350 words — check your count before returning. Go long where the content supports it.
+Use \\n\\n between every paragraph. No numbered lists, no bullet points, no bold markdown. Each caption 150–350 words.
 
 Return:
 {
-  "angles": ["angle 1", "angle 2", "angle 3", "angle 4", "angle 5"],
   "captions": [
     { "id": "caption_1", "wordCount": 0, "text": "...", "format": "A" },
     { "id": "caption_2", "wordCount": 0, "text": "...", "format": "B" },
