@@ -38,7 +38,7 @@ async function azureChat(systemPrompt: string, userPrompt: string): Promise<stri
           { role: 'user',   content: userPrompt   },
         ],
         temperature: 0.9,
-        max_tokens: 4500,
+        max_tokens: 10000,
       }),
     });
   } catch (err) {
@@ -213,7 +213,7 @@ TREAT THE TOPIC AS SACRED: The user's specific language, examples, contrasts, an
 
 THE CARDINAL RULE: Every caption must be rooted in the exact subject matter from the topic — not the category it belongs to. If two captions could swap content, you failed.
 
-Length requirement: Each caption must be 200–350 words. This is not optional. Short captions fail the user's audience who came to read. Count your words before returning. If a caption is under 200 words, expand it with more specific detail from the topic.
+Length requirement: Each caption must be 150–350 words (roughly 1000–2000 characters). This is not optional. Short captions fail the user's audience who came to read. Count your words before returning. If a caption is under 150 words, expand it with more specific detail from the topic. You have room to go long — use it.
 
 Structural rules (non-negotiable):
 - First line: cannot start with "I", the brand name, or a soft question ("Have you ever", "Are you"). Must create tension, curiosity, or a sharp claim.
@@ -251,7 +251,7 @@ Caption 4 — The how-to with teeth. Open with a sharp, specific claim. Walk thr
 
 Caption 5 — The contrast reveal. Use any engagement mechanic the user described (e.g. "comment which looks more real: 1 or 2", a before/after, a test). Build suspense around the contrast, deliver the reveal with specifics, close with the insight. End with the engagement CTA from the topic.
 
-Use \\n\\n between every paragraph. No numbered lists, no bullet points, no bold markdown. Each caption must be 200–350 words — check your count before returning.
+Use \\n\\n between every paragraph. No numbered lists, no bullet points, no bold markdown. Each caption must be 150–350 words — check your count before returning. Go long where the content supports it.
 
 Return:
 {
