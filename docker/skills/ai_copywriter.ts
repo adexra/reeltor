@@ -265,28 +265,38 @@ export async function generateCaptions(
   context: BusinessContext,
   brief?: DraftBrief,
 ): Promise<Array<{ id: string; text: string; format: string }>> {
-  const system = `You are an amplifier and editor, not a creative writer. The creator has given you their raw notes. Your only job is to take exactly what they wrote and develop it into 5 polished captions — each a different stylistic presentation of the same facts, not a different story.
+  const system = `You are an amplifier and editor, not a creative writer. The creator has given you their raw notes. Your only job is to take exactly what they wrote and develop it into 5 polished, visually engaging Instagram captions — each a different stylistic presentation of the same facts, not a different story.
 
-ZERO FACTUAL DEVIATION: Do not invent steps, examples, or concepts that are not in the creator's notes. Do not change their specific language into generic equivalents. If they wrote "rubbery-looking AI images", those words appear. If they wrote "leave a comment: option 1 or 2", that mechanic appears. Their facts are locked. Only the presentation style changes across the 5 options.
+ZERO FACTUAL DEVIATION: Do not invent steps, examples, or concepts not in the creator's notes. If they wrote "rubbery-looking AI images", those words appear. If they wrote "leave a comment: option 1 or 2", that exact mechanic appears. Their facts are locked. Only the presentation style changes.
+
+VISUAL STRUCTURE IS REQUIRED: Instagram captions need to breathe. Every caption must use spacing, line breaks, and visual rhythm to be easy to read on a phone screen. A wall of text loses readers. Use these tools freely:
+
+→ Short standalone lines for emphasis (one sentence alone on its own line)
+→ Blank lines (\\n\\n) between every thought or section
+→ Emoji used as visual anchors at the start of key lines (1 emoji per line max, 3–5 total per caption)
+→ Questions dropped in the middle or end to invite replies ("Sound familiar?" / "Which one did you pick?")
+→ A comment CTA that asks the reader something specific ("Comment 1 or 2 below" / "Drop a 🔥 if this is you")
+→ Short punchy lines mixed with slightly longer explanatory lines — vary the rhythm
+
+The goal: someone reading on their phone should be able to skim it and still get the full picture, or read every word and feel rewarded.
 
 THE 5 OPTIONS ARE STYLISTIC VARIATIONS, NOT NEW STORIES:
-Option A — Direct and punchy. Same facts, written tight. Short sentences. No fat.
-Option B — Story-driven. Wrap the creator's facts inside a relatable scenario that makes the reader feel seen — but every detail comes from the notes.
-Option C — Step-by-step breakdown. Present the creator's content as a clear sequence written in prose (no lists, no numbers). Each paragraph = one step or idea from the notes.
-Option D — Conversational and casual. Same facts, written like a text to a friend. Relaxed voice, full content.
-Option E — Built around the engagement mechanic. If the creator described a poll, comparison, challenge, or CTA mechanic — this caption builds the whole structure around it. If no mechanic exists, write the most skimmable version with clear short paragraphs.
+Option A — Direct and punchy. Tight sentences. Heavy use of standalone lines for visual impact. 3–4 emojis as anchors.
+Option B — Story-driven. The creator's facts wrapped in a relatable scenario. Paragraph-based with breathing room. Ends with a "if this is you" comment CTA.
+Option C — Structured breakdown. The creator's content presented as a clear sequence — each idea gets its own visual block (short intro line + 1–2 sentence explanation + blank line). Feels organized without using numbered lists.
+Option D — Conversational. Same facts written like a voice note turned into text. Casual, direct, uses questions mid-caption to keep the reader engaged.
+Option E — Engagement-first. Built entirely around the engagement mechanic the creator described (poll, comparison, "comment 1 or 2", challenge). Heavy on reader participation. Every section leads toward the CTA they wrote.
 
-Structural rules (non-negotiable):
-- First line: cannot start with "I", the brand name, or a soft question ("Have you ever", "Are you"). Must create tension or a sharp claim using the creator's own content.
-- Body: short paragraphs, 2–3 sentences max, then a line break. No walls of text.
-- No numbered lists, no bullet points, no bold markdown (**text**). Instagram renders none of these.
-- Emojis: 1–2 max, purposeful only.
-- CTA: last line, standalone, specific — uses the engagement mechanic they described if one exists.
-- Length: 150–350 words each. Count before returning. Under 150 = you removed too much — add it back.
+Structural rules:
+- First line: cannot start with "I", the brand name, or "Have you ever" / "Are you". Must hook with a claim or tension from the creator's content.
+- No markdown bold (**text**) — Instagram doesn't render it and it looks broken.
+- No numbered lists (1. 2. 3.) — use visual spacing instead.
+- CTA: last line, standalone, specific — the engagement mechanic they described if one exists.
+- Length: 150–350 words each. Count before returning. Under 150 = expand with more from the brief.
 
 Banned phrases: "game-changer", "unlock", "transform your", "dive into", "in today's world", "the truth is", "let's be honest", "here's the thing", "it's no secret", "level up", "don't miss out".
 
-Output valid JSON only. No markdown wrapping, no preamble.`;
+Output valid JSON only. No markdown wrapping, no preamble. Use \\n for single line breaks and \\n\\n for paragraph breaks in the text values.`;
 
   const briefSection = brief ? `CREATOR'S BRIEF (structured from their exact notes — these are your only ingredients):
 Core claim: ${brief.coreClaim}
@@ -303,9 +313,9 @@ Audience: ${context.targetAudience}
 Tone: ${context.tone}
 Product/Service: ${context.productDescription}
 
-Write 5 captions. All 5 use the exact same facts from the brief above. Only the presentation style changes. Do not invent new content — amplify what is already there.
+Write 5 captions. All 5 use the exact same facts. Only the presentation style and visual structure changes. Make each one visually distinct — different rhythm, different use of line breaks, different engagement mechanic placement.
 
-Use \\n\\n between every paragraph. No numbered lists, no bullet points, no bold markdown. Each caption 150–350 words.
+Do not invent new content. Do not write walls of text. Every caption should look good on a phone screen.
 
 Return:
 {
@@ -344,7 +354,7 @@ SCORING CRITERIA (1–10):
 HARD RULE: If a caption fails more than 2 checks, cap score at 3.`;
 
   const user = `Score these captions against these rules:
-1. noMarkdown — no numbered lists, bullet points, or **bold** markdown
+1. noMarkdown — no **bold** markdown or numbered lists (1. 2. 3.) — emojis and line breaks are fine and encouraged
 2. noForbiddenPhrases — none of: "game-changer", "unlock", "transform your", "dive into", "in today's world", "the truth is", "let's be honest", "here's the thing", "level up", "don't miss out"
 3. firstLineStrong — first line creates curiosity or tension (not starting with "I", brand name, or weak question)
 4. hasCTA — clear specific CTA in the last standalone line (not "follow for more")
@@ -427,18 +437,19 @@ export async function validateAgainstSkill(
   const system = `You are a structural caption editor. Your job is to fix formatting violations only — never rewrite for style, never reduce length, never remove the writer's specific examples, language, or scenarios.
 
 WHAT YOU FIX (structural issues only):
-- Remove any numbered lists or bullet points (rewrite as prose sentences)
 - Remove any **bold markdown** (keep the text, remove the asterisks)
+- Remove numbered lists (1. 2. 3.) — rewrite as visually spaced prose blocks instead
 - Fix spelling errors in place
 - Add a CTA if genuinely missing (match the tone and subject — do not use generic CTAs)
 - Fix a weak first line ONLY if it starts with "I", the brand name, or a soft question opener
 
 WHAT YOU NEVER DO:
 - Do not shorten captions. If a caption is 250 words, the improved version must be at least 250 words.
+- Do not remove emojis — they are intentional visual anchors.
+- Do not remove line breaks or compress paragraphs — visual spacing is intentional.
 - Do not remove specific examples, named scenarios, or unique phrasing from the original.
-- Do not swap the writer's concrete language for generic summaries.
-- Do not rewrite for "cleaner" style — preserve the voice.
-- If a caption passes all structural checks, return it exactly as-is. Do not improve what isn't broken.
+- Do not rewrite for "cleaner" style — preserve the voice and visual structure.
+- If a caption passes all structural checks, return it exactly as-is.
 
 SKILL GUIDELINES (for scoring reference only):
 ${skillContent}
