@@ -343,16 +343,27 @@ export default function RecordPage({ params }: { params: Promise<{ jobId: string
     animId = requestAnimationFrame(drawFrame);
 
     const stream   = canvas.captureStream(30);
-    // Prefer H.264 codec (works on iOS Safari for playback even in webm container).
-    // Fall back through options to whatever the browser supports.
+    // isTypeSupported() is unreliable — some browsers report true but the
+    // MediaRecorder constructor still throws. Try each candidate for real.
     const MIME_CANDIDATES = [
-      'video/mp4;codecs=avc1',
       'video/webm;codecs=h264',
       'video/webm;codecs=vp9',
       'video/webm',
     ];
-    const mimeType = MIME_CANDIDATES.find((m) => MediaRecorder.isTypeSupported(m)) ?? 'video/webm';
-    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 });
+    let recorder: MediaRecorder | null = null;
+    let mimeType = 'video/webm';
+    for (const candidate of MIME_CANDIDATES) {
+      try {
+        recorder = new MediaRecorder(stream, { mimeType: candidate, videoBitsPerSecond: 8_000_000 });
+        mimeType = candidate;
+        break;
+      } catch {
+        // candidate not actually supported by this browser — try next
+      }
+    }
+    if (!recorder) {
+      throw new Error('No supported video format found for browser recording.');
+    }
     recorderRef.current = recorder;
 
     recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
