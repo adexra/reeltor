@@ -356,16 +356,31 @@ export default function RecordPage({ params }: { params: Promise<{ jobId: string
     animId = requestAnimationFrame(drawFrame);
 
     const stream = canvas.captureStream(30);
-    // Use plain video/webm — universally supported by all desktop browsers.
-    // Avoid codec-specific variants (h264, vp9) which throw on many browsers
-    // despite isTypeSupported() returning true.
+
+    if (!stream || stream.getTracks().length === 0) {
+      cancelAnimationFrame(animId);
+      video.pause();
+      setPhase('ready');
+      setError('Canvas stream is empty — try refreshing, or use Cloud render instead.');
+      return;
+    }
+
+    // Let the browser pick its own codec — never specify mimeType.
+    // Specifying 'video/webm' or any codec string throws on Safari and some
+    // Chrome/Edge builds. No mimeType = browser picks what it actually supports.
     let recorder: MediaRecorder;
-    const mimeType = 'video/webm';
     try {
-      recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 });
+      recorder = new MediaRecorder(stream, { videoBitsPerSecond: 8_000_000 });
     } catch {
-      // Last resort: let the browser pick its own defaults
-      recorder = new MediaRecorder(stream);
+      try {
+        recorder = new MediaRecorder(stream);
+      } catch (err) {
+        cancelAnimationFrame(animId);
+        video.pause();
+        setPhase('ready');
+        setError('MediaRecorder is not supported in this browser. Please use Chrome or Firefox, or switch to Cloud render.');
+        return;
+      }
     }
     recorderRef.current = recorder;
 
@@ -375,7 +390,7 @@ export default function RecordPage({ params }: { params: Promise<{ jobId: string
       cancelAnimationFrame(animId);
       video.pause();
 
-      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || mimeType });
+      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'video/webm' });
       setPhase('uploading');
 
       const fd = new FormData();
@@ -425,8 +440,25 @@ export default function RecordPage({ params }: { params: Promise<{ jobId: string
 
   if (error) {
     return (
-      <main className="min-h-screen bg-[#07080A] flex items-center justify-center p-6">
-        <p className="text-red-400 font-mono text-sm">{error}</p>
+      <main className="min-h-screen bg-[#07080A] flex flex-col items-center justify-center gap-6 p-6">
+        <div className="flex flex-col items-center gap-4 max-w-sm text-center">
+          <span className="text-2xl">⚠️</span>
+          <p className="text-red-400 font-mono text-sm leading-relaxed">{error}</p>
+          <div className="flex flex-col gap-3 w-full mt-2">
+            <button
+              onClick={() => { setError(null); setPhase('ready'); }}
+              className="w-full py-3 border border-[#1E2329] text-[#5A6478] font-mono text-sm rounded-lg hover:border-[#2A3140] hover:text-[#EEF2F7] transition-colors touch-manipulation"
+            >
+              Try Again
+            </button>
+            <a
+              href="/"
+              className="w-full py-3 bg-[#E8FF47] text-[#07080A] font-bold font-mono text-sm rounded-lg text-center hover:bg-[#F2FF70] transition-colors touch-manipulation"
+            >
+              Back to Home → Use Cloud Render
+            </a>
+          </div>
+        </div>
       </main>
     );
   }
